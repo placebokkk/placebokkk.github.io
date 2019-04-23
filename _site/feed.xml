@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-04-23T11:33:00+08:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Chao Yang</title><subtitle>My note about learning</subtitle><entry><title type="html">Normalize Flow</title><link href="http://localhost:4000/dl/2019/03/20/tts-flow.html" rel="alternate" type="text/html" title="Normalize Flow" /><published>2019-03-20T10:00:00+08:00</published><updated>2019-03-20T10:00:00+08:00</updated><id>http://localhost:4000/dl/2019/03/20/tts-flow</id><content type="html" xml:base="http://localhost:4000/dl/2019/03/20/tts-flow.html">&lt;h2 id=&quot;预备知识&quot;&gt;预备知识&lt;/h2&gt;
+&lt;h3 id=&quot;雅各比阵-j&quot;&gt;雅各比阵 J&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;对于一个非线性（或线性）函数f(x)，对于其中任意一个点xi，可以认为在xi周围无穷小的区域内做了一个线性变换，每个点的线性变换都不一样（也是关于x的函数），该线性变化的矩阵的函数即是雅各比阵。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;行列式-det&quot;&gt;行列式 det&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;一个线性变化把一个单位大小（大小为1的）的空间变换成的新的空间的大小。或者说一个线性变化对原空间的放大比例。&lt;/li&gt;
+  &lt;li&gt;只有方阵有行列式，因为方阵对应的线性变化输入和输出的纬度是一样的，才可以比较两个空间的体积，一个2维和3维的空间之间的体积无法比较&lt;/li&gt;
+  &lt;li&gt;方阵的逆的行列式=方阵的行列式的逆， 说明一个线性变化把原空间放大多少，他对应的逆线性变化就把原空间缩小多少。如果一个线性变化A的行列式为0，即A把一个空间缩小为0，则A的逆变化是把空间放大无穷倍，这种变化不存在（不存在有限值），因此当A的行列式为0，A不可逆。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;normalize-flow&quot;&gt;Normalize Flow&lt;/h2&gt;
+&lt;h3 id=&quot;问题1&quot;&gt;问题1:&lt;/h3&gt;
+&lt;p&gt;x服从p(x)分布，若y=f(x),则y服从什么分布？&lt;/p&gt;
+
+&lt;p&gt;假设y服从q(y)分布&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;p(x)*dx = q(f(x))*df(x)
+q(y) = p(g(y)) |det J(g(y))|  
+g=f^-1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;问题2&quot;&gt;问题2&lt;/h3&gt;
+&lt;p&gt;假如y服从q(y)，我们想从q(y)采样出一系列样本y，但是q(y)不好采样，或者我们就不知道q(y)的解析形式。这么办。&lt;/p&gt;
+
+&lt;p&gt;解决方法：
+把问题1反过来看，选择一个简单的分布p(x)，如果我们能找到一个变换f，使得f(x)服从q(y).则只要从p(x)中采样，然后执行f计算即可。任务就变为选择一个p(x)和找到一个f.
+寻找f的过程需要计算q(y)，因此对f有两个要求：&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;f可逆&lt;/li&gt;
+  &lt;li&gt;f的行列式计算量不要过大&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;怎么找到f，f是一个带参数的函数，f的形式确定了，寻找f即寻找f的参数，可以找到一个使得q(y)和数据分布最一致的f（最大似然）.&lt;/p&gt;
+
+&lt;h3 id=&quot;问题3&quot;&gt;问题3&lt;/h3&gt;
+&lt;p&gt;x服从p(x)分布，若y=f2(f1(x)),则y服从什么分布？&lt;/p&gt;
+
+&lt;p&gt;假设y服从q(y)分布&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;q(y) = p(g1(g2((y))) |det J(g1)|  |det J(g2)|  
+g1=f1^-1
+g2=f2^-1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;可以看出，通过一系列变换fi将x变为y，q(y)的形式非常简单。因此，对于问题2，我们可以寻找一系列满足可逆和行列式容易计算这两个条件的f，来构建非常复杂的变换（多层的神经网络）。
+通过梯度方法可以计算出神经网络的参数。概率估计问题被转换为一个深度神经网络的学习问题。&lt;/p&gt;
+
+&lt;h2 id=&quot;为flow选择f&quot;&gt;为flow选择f&lt;/h2&gt;
+
+&lt;h3 id=&quot;nice和nvp&quot;&gt;NICE和NVP&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;一个很巧妙的构造，把x拆成两部分，第一部分不变，第二部分的进行缩放变换，缩放比例是一个关于第一部分的函数，函数可逆，且行列式的值非常容易求得。&lt;/li&gt;
+  &lt;li&gt;为了使得每一维都可以被变换，每次拆分时选择不同的维度作为不变的第一部分。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;glow&quot;&gt;Glow&lt;/h3&gt;
+
+&lt;p&gt;在NVP中需要每次拆分选择不同的维度，使用1X1的卷积可以直接混合不同维度之间的信息，GFlow通过在每个NVP的f之间假如一个1X1的卷积（或者一个前向层），可以不需要每次拆分选择不同的维度。&lt;/p&gt;
+
+&lt;h2 id=&quot;自回归flow&quot;&gt;自回归flow&lt;/h2&gt;</content><author><name></name></author><summary type="html">预备知识 雅各比阵 J</summary></entry><entry><title type="html">语音合成Tacotron</title><link href="http://localhost:4000/tts/2019/02/15/tts-tacotron.html" rel="alternate" type="text/html" title="语音合成Tacotron" /><published>2019-02-15T11:12:00+08:00</published><updated>2019-02-15T11:12:00+08:00</updated><id>http://localhost:4000/tts/2019/02/15/tts-tacotron</id><content type="html" xml:base="http://localhost:4000/tts/2019/02/15/tts-tacotron.html">&lt;h1 id=&quot;tacotron系列论文笔记&quot;&gt;Tacotron系列论文笔记&lt;/h1&gt;
+
+&lt;ul class=&quot;task-list&quot;&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; checked=&quot;checked&quot; /&gt;TACOTRON: TOWARDS END-TO-END SPEECH SYNTHESIS&lt;/li&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; checked=&quot;checked&quot; /&gt;Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions&lt;/li&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; /&gt;List item Uncovering Latent Style Factors for Expressive Speech Synthesis&lt;/li&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; /&gt;Towards End-to-End Prosody Transfer for Expressive Speech Synthesis with Tacotron&lt;/li&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; /&gt;Style Tokens: Unsupervised Style Modeling, Control and Transfer in End-to-End Speech Synthesis&lt;/li&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; /&gt;Transfer Learning from Speaker Verification to Multispeaker Text-To-Speech Synthesis&lt;/li&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; /&gt;Predicting Expressive Speaking Style From Text in End-to-End Speech Synthesis&lt;/li&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; /&gt;Semi-Supervised Training for Improving Data Efficiency in End-to-End Speech Synthesis&lt;/li&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; /&gt;Hierarchical Generative Modeling for Controllable Speech Synthesis&lt;/li&gt;
+  &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; /&gt;Disentangling Correlated Speaker and Noise for Speech Synthesis via Data Augmentation and Adversarial Factorization&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;目标：通过学习Tacotron系列论文，
+了解语音合成领域的研究方向，研究方法，专用术语，评估方法和当前的系统性能&lt;/p&gt;
+
+&lt;h2 id=&quot;基本的e2e语音合成系统介绍&quot;&gt;基本的E2E语音合成系统介绍&lt;/h2&gt;
+
+&lt;p&gt;参数TTS的系统结构为 音频特征生成 + 声码器。
+参考WAVENET: A GENERATIVE MODEL FOR RAW AUDIO的附录&lt;/p&gt;
+
+&lt;p&gt;其中，音频特征生成模块，输入是待合成的文本，输出为音频特征序列。
+传统的声码器（vocoder)是基于语音信号处理方法，将频域特征还原回时域信号。2016年google提出的基于神经网络的声码器Wavenet，后来做了进一步优化，提升了合成音频质量并加快了计算速度，目前可以完全替代传统声码器。&lt;/p&gt;
+
+&lt;p&gt;Google TTS组的工作 &lt;a href=&quot;https://google.github.io/tacotron/&quot;&gt;tacotron&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;17年初到18年底，Google发表了一系列利用神经网络进行音频特征生成的方法，极大的提升了合成的质量，工作包括&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;一种基于Encoder-Decoder神经网络结构的参数TTS中的声学模型，称之为Tacotron&lt;/li&gt;
+  &lt;li&gt;利用神经网络建模风格（style）信息，允许指定style&lt;/li&gt;
+  &lt;li&gt;利用文本中获得style信息&lt;/li&gt;
+  &lt;li&gt;多说话人&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;1tacotron开篇之作&quot;&gt;1.Tacotron开篇之作&lt;/h2&gt;
+
+&lt;p&gt;&lt;em&gt;TACOTRON: TOWARDS END-TO-END SPEECH SYNTHESIS&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;摘要&lt;/p&gt;
+
+&lt;p&gt;A text-to-speech synthesis system typically consists of multiple stages,
+such as a text analysis frontend, an acoustic model and an audio synthesis module.
+Build-ing these components often requires extensive domain expertise and may contain brittle design choices. 
+In this paper, we present Tacotron, an end-to-end generative text-to-speech model that synthesizes speech directly from characters.
+Given &amp;lt;text, audio&amp;gt; pairs, the model can be trained completely from scratch with random initialization.
+We present several key techniques to make the sequence-to-sequence framework perform well for this challenging task.
+Tacotron achieves a 3.82 subjective 5-scale mean opinion score on US English,
+outperforming a production parametric system in terms of naturalness.
+In addition, since Tacotron generates speech at the frame level, it’s substantially faster than sample-level autoregressive methods.&lt;/p&gt;
+
+&lt;p&gt;专业术语&lt;/p&gt;
+
+&lt;p&gt;parametric synthesis system 参数语音合成系统&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;text analysis frontend&lt;/li&gt;
+  &lt;li&gt;an acoustic model&lt;/li&gt;
+  &lt;li&gt;an audio synthesis module&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;mean opinion score - MOS TTS里的主观评测指标，有1-5分选项，专业测听人员进行打分&lt;/p&gt;
+
+&lt;p&gt;frame-level 帧级别，对于8K采样的声音，如果帧移是10ms，每秒800帧。每帧根据帧长对应多个采样点，比如帧长25ms，8k的数据，每帧对应采样点个数为200个。
+从帧级别的特征，可以生成采样点级别的信号。
+samlple-level 采样点级别，对于8K采样的声音，每秒生成8000个采样点。&lt;/p&gt;
+
+&lt;p&gt;Tacotron是Encoder-Decoder 结构的网络。&lt;/p&gt;
+
+&lt;p&gt;Encoder = WordEmbeding+PreNet+CBHG&lt;/p&gt;
+
+&lt;p&gt;CBHG&lt;/p&gt;
+
+&lt;p&gt;Convolution Bank + Highway + bidirectional-GRU&lt;/p&gt;
+
+&lt;p&gt;Convolution Bank 是不同width的1-D filters，每个宽度的bank包含一组filters，每一时间点上所有filter的输出拼接起来。
+比如，如果输入序列维度是128*T，使用16个不同宽度的bank（宽度分别为1-16），若每种宽度的bank都有256个filter，stride=1，做好padding，则每个bank输出是256*T序列。
+将所有bank拼接起来，最终输出是（256*16）* T的序列。&lt;/p&gt;
+
+&lt;p&gt;对于宽度为k的filter，则一个filter的参数有k*128个.假设每宽度k有256个filter（256个输出channel）
+总共的参数量为sum_k*128*256,若k取1-16，即一个CBHG层的参数量为17*8*128*256=4400000。
+CBHG输出每一时刻的维度为256*16&lt;/p&gt;
+
+&lt;p&gt;CBHG中还使用了res连接，通过Convolution Bank的序列，最后使用一个输出channel和CBHG的输入序列channel大小一样的卷积，使得卷积后维度和原始输入相同，从而可以相加。&lt;/p&gt;
+
+&lt;p&gt;整个CBHG操作可以看作是序列的一种特征变化。原始的输入序列上每一个时刻点的特征仅是自身的信息，而通过CBank可以捕获不同窗长度内上下文时文本的信息，RNN也可以获得长距离上下文的信息，
+从而经过变换后的特征序列，每个时刻上的特征出了包含当前时刻本身信息，还包含了当前时刻在此上下文情况下的信息。&lt;/p&gt;
+
+&lt;p&gt;Decoder&lt;/p&gt;
+
+&lt;p&gt;Decoder部分分两个网络&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;第一部分是PreNet+Attention RNN网络，该网络输出mel谱参数。&lt;/li&gt;
+  &lt;li&gt;第二部分是一个CBHG网络，mel谱参数再经过该CBHG网络得到线性谱参数。&lt;/li&gt;
+  &lt;li&gt;优化时同时使用这个两个输出和对应标注的误差作为优化目标。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;线性谱是原语音帧的完整频谱表示。
+梅尔谱特征是一个变换到梅尔域并且加三角窗且降低分辨率的更低维表示。&lt;/p&gt;
+
+&lt;p&gt;为了加速训练，Decoder中的PreNet+Attention RNN网络每个时刻输出连续多帧（比如3帧）的特征。&lt;/p&gt;
+
+&lt;p&gt;假设每帧是40个输出，则使用一个128&lt;em&gt;120的全联接层， 其中128为GRU的输出维度，120 = 40&lt;/em&gt;3. 训练时&lt;/p&gt;
+
+&lt;p&gt;对于输出多帧的谱参数，只把每个时间点输出的多帧中的最后一帧作为下一个时间的输入。&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;In inference, at decoder step t, the last frame of the r predictions is fed as input to the decoder at step t + 1.
+Note that feeding the last prediction is an ad-hoc choice here，we could use all r predictions. 
+During training, we always feed every r-th ground truth frame to the decoder. 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Decoder的第一时刻点的输入为一个全零向量。&lt;/p&gt;
+
+&lt;p&gt;PreNet+Attention RNN直接输出线性谱,效果不好，论文中有图片比较通过PreNet+Attention RNN直接输出线性谱和
+PreNet+Attention RNN输出mel谱然后再经过CBHG网络输出线性谱，后者看起来共振峰清晰很多。&lt;/p&gt;
+
+&lt;p&gt;Attention Align的图
+decoder中的输出和encoder中的输出做attention，因为TTS的输出和输入是同样的顺序（语音识别也是同序的，机器翻译是不同序的），
+因此，因此我们期望attention align的权重图，对于每个输出都主要align在某个输入时刻点上，且是平滑变化的，反映到图上时应该是一个
+清晰的从左到右上升的台阶形状。&lt;/p&gt;
+
+&lt;p&gt;Tacotron的MOS值好于当时最好的参数模型。使用了Griffin-Lim的Vocoder，效果比当时最好的拼接系统略差。
+Tacotron 3.82 ± 0.085&lt;br /&gt;
+Parametric 3.69 ± 0.109
+Concatenative 4.09 ± 0.119&lt;/p&gt;
+
+&lt;h2 id=&quot;2tacotronwavenet&quot;&gt;2.Tacotron+Wavenet&lt;/h2&gt;
+&lt;p&gt;Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions&lt;/p&gt;
+
+&lt;p&gt;This paper describes Tacotron 2, a neural network architecture for speech synthesis directly from text. 
+The system is composed of a recurrent sequence-to-sequence feature prediction network that maps character embeddings to mel-scale spectrograms, 
+followed by a mod-ified WaveNet model acting as a vocoder to synthesize time-domain waveforms from those spectrograms. 
+Our model achieves a mean opinion score (MOS) of 4.53 comparable to a MOS of 4.58 for professionally recorded speech. 
+To validate our design choices, we present ablation studies of key components of our system and
+evaluate the im-pact of using mel spectrograms as the conditioning input to WaveNet instead of linguistic, duration, and F0 features.
+We further show that using this compact acoustic intermediate representation allows for a significant reduction in the size of the WaveNet architecture.&lt;/p&gt;
+
+&lt;p&gt;此论文也被称为Tacotron2，其对Tacotron开篇之作的中的系统做了如下改进：&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;简化了CBHG，去掉了其中的Highway网络&lt;/li&gt;
+  &lt;li&gt;声学模型网络输出mel特征（而不是线性谱特征+F0）&lt;/li&gt;
+  &lt;li&gt;vocoder从Griffin-Lim换做了Wavenet，&lt;/li&gt;
+  &lt;li&gt;MOS直接到达4.53，逼近真人发音的4.58MOS值&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;3带风格style的合成方法&quot;&gt;3.带风格Style的合成方法&lt;/h2&gt;
+
+&lt;p&gt;Uncovering Latent Style Factors for Expressive Speech Synthesis&lt;/p&gt;
+
+&lt;p&gt;Towards End-to-End Prosody Transfer for Expressive Speech Synthesis with Tacotron&lt;/p&gt;
+
+&lt;p&gt;Style Tokens: Unsupervised Style Modeling, Control and Transfer in End-to-End Speech Synthesis&lt;/p&gt;
+
+&lt;p&gt;Predicting Expressive Speaking Style From Text in End-to-End Speech Synthesis&lt;/p&gt;</content><author><name></name></author><summary type="html">Tacotron系列论文笔记</summary></entry><entry><title type="html">Attention/Transformer/Transformer XL</title><link href="http://localhost:4000/dl/2019/02/10/basic-transformer.html" rel="alternate" type="text/html" title="Attention/Transformer/Transformer XL" /><published>2019-02-10T10:00:00+08:00</published><updated>2019-02-10T10:00:00+08:00</updated><id>http://localhost:4000/dl/2019/02/10/basic-transformer</id><content type="html" xml:base="http://localhost:4000/dl/2019/02/10/basic-transformer.html">&lt;h1 id=&quot;attentiontransformertransformer-xl&quot;&gt;Attention/Transformer/Transformer XL&lt;/h1&gt;
+
+&lt;h2 id=&quot;transformer&quot;&gt;Transformer&lt;/h2&gt;
+
+&lt;p&gt;Attention&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Attention可以抽象为一个Q（query）和一组[(K，V)]（key，value).&lt;/li&gt;
+  &lt;li&gt;给定一个Q，根据Q和K的相关程度（attention度量方法），选择K对应的V。&lt;/li&gt;
+  &lt;li&gt;和数据库检索不同，并不是只使用相关度最大的K对应的V，而是每个V都使用。通过度量公式计算Q和K的相关程度，和Q越相关的K其对应的V的权重越大，将所有的V加权求和。&lt;/li&gt;
+  &lt;li&gt;Q，K，V都是向量。且很多结构里使用的Attention机制，V就是K本身。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Multihead Attention&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Multihead是指，同时使用多组attention进行计算。&lt;/li&gt;
+  &lt;li&gt;因为输入都是Q，[(K，V)].如果直接用Q，K，V来计算，每组attention机制算出的结果是一样的。&lt;/li&gt;
+  &lt;li&gt;每组attention将K，V，Q分别做线性变化（线性变换的参数是网络的参数一部分），相当于计算信息在某个线性子空间上的attention，从而每组得到的attention结果是不同的。各组计算的结果再拼接起来作为最终结果。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Inter-Attention&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;在attention最初应用于NN时，Q是decoder中的hidden输出，K，V是encoder中的hidden输出（且K和V一样）.因此Q和K实际是两个不同序列上的信息，我称之为Inter-Attention，或者External-Attention。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Self-Attention&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;是指attention不跨越decoder和encoder，在encoder序列内或者decoder序列内进行。也可以叫Intra-Attention，Internal-Attental。&lt;/li&gt;
+  &lt;li&gt;比如encoder中序列的每一时刻的某层信息（比如文本的embedding）都会和其他各时刻做attention操作，从而每个时刻都可以直接捕获其他时刻的信息。&lt;/li&gt;
+  &lt;li&gt;在Self-attention中，Q和K是属于同一个序列的。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Positional Encoding（PE）&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;self-attention不像RNN或者CNN可以捕捉到序列的顺序性，因此当顺序是重要的时候，可以通过Positional Encoding（PE）来为数据加入位置相关的信息。可以使用正余弦函数来构建，每一维选择不同的角频率，给定位置则PE值是确定的，且不同位置的PE值一定不一样。PE和输入直接相加。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Masked Multihead Self-Attention&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Decoder-Block里有个Masked Multihead Self-Attention中的Masked是指做attention时只和当前时刻之前的时刻做attention。因为decoder时输出（也是下一时刻的输入）从左往右依次产生的，在t时刻时，后面的数据还未产生。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Transformer的整体结构&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Transformer = Encoder + Decoder&lt;/li&gt;
+  &lt;li&gt;Encoder=Positional encoding + [Encoder-Block] * N&lt;/li&gt;
+  &lt;li&gt;Encoder-Block=[Res+Multihead Self-Attention] + [Res+Dense]&lt;/li&gt;
+  &lt;li&gt;Decoder=Positional encoding + [Decoder-Block] * N&lt;/li&gt;
+  &lt;li&gt;Decoder-Block=[Res+Masked Multihead Self-Attention] + [Res+Multihead Inter-Attention] + [Res+Dense]&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;transformer的应用&quot;&gt;Transformer的应用&lt;/h2&gt;
+&lt;h3 id=&quot;各种端到端的序列转换任务&quot;&gt;各种端到端的序列转换任务&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;自然语言处理
+    &lt;ul&gt;
+      &lt;li&gt;开山论文即展示在机器翻译和Constituency Parsing上应用达到state-of-the-art。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;语音识别：
+    &lt;ul&gt;
+      &lt;li&gt;self-attention比较适合自然语言处理任务中希望捕获长距离上下文影响的情况。语音识别输入是帧级别的声学特征，在encoder阶段self-attention意义不大。decode阶段，目前的E2E识别系统建模单元一般都没到词级别（中文是音节/音素，字母类语言用音素/字符/音节/子词），也没必要使用覆盖特别长的上下文的self-attention。&lt;/li&gt;
+      &lt;li&gt;不过也有学者尝试用Transformer来做识别，Speech-transformer:A no-recurrence sequence-to-sequence model for speech recognition&lt;/li&gt;
+      &lt;li&gt;pytorch代码实现 https://github.com/kaituoxu/Speech-Transformer&lt;/li&gt;
+      &lt;li&gt;大部分语音识别场景要求streaming，直接用encoder-decoder架构不适合。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;语音合成的输入是文本，可以考虑应用self-attention捕获长距离上下文。
+    &lt;ul&gt;
+      &lt;li&gt;微软的文章 https://arxiv.org/pdf/1809.08895.pdf&lt;/li&gt;
+      &lt;li&gt;语音合成不像nlp的任务需要关注特别长的上下文，tacotron中的conv bank本身覆盖的上下文长度（从1到16）已经足够长了。感觉使用self-attention还是conv bank都差不多。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bert&quot;&gt;BERT&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;OpenAI的Generative Pre-trained Transformer（GPT）最早Transformer来进行LM训练，该模型从左往右预测下一个词，类似于Transformer的Decoder部分，只使用了词的单侧上下文。&lt;/li&gt;
+  &lt;li&gt;BERT希望使用self-attention且能同时利用左右的上下文，但是直接用双侧的self-attention会使得在预测下一个词的时，输入信息中直接能看到下一个词是什么，模型无法得到有效学习。为了解决这个问题引入了masked LM的训练方法。对于要预测的词，将输入序列中对应的词置为一个特殊字符’[masked]’, 这样输入就看不到待预测的词的信息了。&lt;/li&gt;
+  &lt;li&gt;BERT还增加了一个预测一个句子是不是另一个句子的下一个句子的任务来训练模型（是不是这个标注可以直接从语料免费获取，不需要额外标注）。将两个句子拼起来，用’[sep]’特殊字符分割，然后句首增加’[cls]’特殊字符，用’[cls]’的输出经过一个前向分类网络作为预测结果。&lt;/li&gt;
+  &lt;li&gt;网络参数配置:
+    &lt;ul&gt;
+      &lt;li&gt;BERT-Base :12-layer+ 12-heads + 768-hidden，110M parameters&lt;/li&gt;
+      &lt;li&gt;BERT-Large : 24-layer, 1024-hidden, 16-heads, 340M parameters&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;语言模型天生不需要人工标注，有海量训练数据。训练出的模型可作为其他任务的特征提取模块。将原文本序列转换成一个等长新序列。在几乎所有任务上都得到了很大的提升。&lt;/li&gt;
+  &lt;li&gt;和word2vec直接为每个词提供一个表示（查表，不需要计算时间）不同，BERT是将每个词根据其所在上下完将其转为一个向量表示（称为Contextualized word-embeddings），优点是更好的利用了词当前所处上下文，缺点是需要在线计算且计算量不小。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;transformer的优化&quot;&gt;Transformer的优化&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;Transformer XL&lt;/li&gt;
+  &lt;li&gt;Evoled Transformer&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;资料&quot;&gt;资料&lt;/h2&gt;
+&lt;h3 id=&quot;attention&quot;&gt;Attention&lt;/h3&gt;
+&lt;p&gt;explain&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Attention/NTM/Transformer/SNAIL等 https://lilianweng.github.io/lil-log/2018/06/24/attention-attention.html&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;survey&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;https://arxiv.org/pdf/1811.05544.pdf&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;transformer-1&quot;&gt;Transformer&lt;/h3&gt;
+&lt;p&gt;paper&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;https://arxiv.org/pdf/1706.03762.pdf&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;explain&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;傻瓜版图文讲解 http://jalammar.github.io/illustrated-transformer/&lt;/li&gt;
+  &lt;li&gt;论文总结1 https://hub.packtpub.com/paper-in-two-minutes-attention-is-all-you-need/&lt;/li&gt;
+  &lt;li&gt;论文总结2 http://mlexplained.com/2017/12/29/attention-is-all-you-need-explained/&lt;/li&gt;
+  &lt;li&gt;论文讲解版带pytorch代码 http://nlp.seas.harvard.edu/2018/04/03/attention.html#model-architecture&lt;/li&gt;
+  &lt;li&gt;Google官方报告 https://ai.googleblog.com/2017/08/transformer-novel-neural-network.html&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;video and slides&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;https://www.youtube.com/watch?v=rBCqOTEfxvg&lt;/li&gt;
+  &lt;li&gt;https://drive.google.com/file/d/0B8BcJC1Y8XqobGNBYVpteDdFOWc/view&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bert-1&quot;&gt;BERT&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;Google官方代码 https://github.com/google-research/bert&lt;/li&gt;
+  &lt;li&gt;图文并茂，还顺带解释了一些列预训练表示模型 http://jalammar.github.io/illustrated-bert/&lt;/li&gt;
+  &lt;li&gt;原始论文 https://arxiv.org/pdf/1810.04805.pdf&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;transformer-xl&quot;&gt;Transformer XL&lt;/h3&gt;
+&lt;p&gt;paper&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;https://arxiv.org/pdf/1901.02860.pdf&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;code&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/kimiyoung/transformer-xl&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">Attention/Transformer/Transformer XL</summary></entry><entry><title type="html">Jekyll Example</title><link href="http://localhost:4000/jekyll/update/2019/01/01/welcome-to-jekyll.html" rel="alternate" type="text/html" title="Jekyll Example" /><published>2019-01-01T11:11:59+08:00</published><updated>2019-01-01T11:11:59+08:00</updated><id>http://localhost:4000/jekyll/update/2019/01/01/welcome-to-jekyll</id><content type="html" xml:base="http://localhost:4000/jekyll/update/2019/01/01/welcome-to-jekyll.html">&lt;p&gt;You’ll find this post in your &lt;code class=&quot;highlighter-rouge&quot;&gt;_posts&lt;/code&gt; directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run &lt;code class=&quot;highlighter-rouge&quot;&gt;jekyll serve&lt;/code&gt;, which launches a web server and auto-regenerates your site when a file is updated.&lt;/p&gt;
+
+&lt;p&gt;To add new posts, simply add a file in the &lt;code class=&quot;highlighter-rouge&quot;&gt;_posts&lt;/code&gt; directory that follows the convention &lt;code class=&quot;highlighter-rouge&quot;&gt;YYYY-MM-DD-name-of-post.ext&lt;/code&gt; and includes the necessary front matter. Take a look at the source for this post to get an idea about how it works.&lt;/p&gt;
+
+&lt;p&gt;Jekyll also offers powerful support for code snippets:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;print_hi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Hi, &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;print_hi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Tom'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;#=&amp;gt; prints 'Hi, Tom' to STDOUT.&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Check out the &lt;a href=&quot;https://jekyllrb.com/docs/home&quot;&gt;Jekyll docs&lt;/a&gt; for more info on how to get the most out of Jekyll. File all bugs/feature requests at &lt;a href=&quot;https://github.com/jekyll/jekyll&quot;&gt;Jekyll’s GitHub repo&lt;/a&gt;. If you have questions, you can ask them on &lt;a href=&quot;https://talk.jekyllrb.com/&quot;&gt;Jekyll Talk&lt;/a&gt;.&lt;/p&gt;</content><author><name></name></author><summary type="html">You’ll find this post in your _posts directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run jekyll serve, which launches a web server and auto-regenerates your site when a file is updated.</summary></entry></feed>

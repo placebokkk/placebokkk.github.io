@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.0 -->
+<title>Normalize Flow | Chao Yang</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Normalize Flow" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="预备知识 雅各比阵 J" />
+<meta property="og:description" content="预备知识 雅各比阵 J" />
+<link rel="canonical" href="http://localhost:4000/dl/2019/03/20/tts-flow.html" />
+<meta property="og:url" content="http://localhost:4000/dl/2019/03/20/tts-flow.html" />
+<meta property="og:site_name" content="Chao Yang" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2019-03-20T10:00:00+08:00" />
+<script type="application/ld+json">
+{"description":"预备知识 雅各比阵 J","@type":"BlogPosting","url":"http://localhost:4000/dl/2019/03/20/tts-flow.html","headline":"Normalize Flow","dateModified":"2019-03-20T10:00:00+08:00","datePublished":"2019-03-20T10:00:00+08:00","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/dl/2019/03/20/tts-flow.html"},"@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="Chao Yang" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">Chao Yang</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Normalize Flow</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2019-03-20T10:00:00+08:00" itemprop="datePublished">Mar 20, 2019
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h2 id="预备知识">预备知识</h2>
+<h3 id="雅各比阵-j">雅各比阵 J</h3>
+
+<ul>
+  <li>对于一个非线性（或线性）函数f(x)，对于其中任意一个点xi，可以认为在xi周围无穷小的区域内做了一个线性变换，每个点的线性变换都不一样（也是关于x的函数），该线性变化的矩阵的函数即是雅各比阵。</li>
+</ul>
+
+<h3 id="行列式-det">行列式 det</h3>
+
+<ul>
+  <li>一个线性变化把一个单位大小（大小为1的）的空间变换成的新的空间的大小。或者说一个线性变化对原空间的放大比例。</li>
+  <li>只有方阵有行列式，因为方阵对应的线性变化输入和输出的纬度是一样的，才可以比较两个空间的体积，一个2维和3维的空间之间的体积无法比较</li>
+  <li>方阵的逆的行列式=方阵的行列式的逆， 说明一个线性变化把原空间放大多少，他对应的逆线性变化就把原空间缩小多少。如果一个线性变化A的行列式为0，即A把一个空间缩小为0，则A的逆变化是把空间放大无穷倍，这种变化不存在（不存在有限值），因此当A的行列式为0，A不可逆。</li>
+</ul>
+
+<h2 id="normalize-flow">Normalize Flow</h2>
+<h3 id="问题1">问题1:</h3>
+<p>x服从p(x)分布，若y=f(x),则y服从什么分布？</p>
+
+<p>假设y服从q(y)分布</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>p(x)*dx = q(f(x))*df(x)
+q(y) = p(g(y)) |det J(g(y))|  
+g=f^-1
+</code></pre></div></div>
+
+<h3 id="问题2">问题2</h3>
+<p>假如y服从q(y)，我们想从q(y)采样出一系列样本y，但是q(y)不好采样，或者我们就不知道q(y)的解析形式。这么办。</p>
+
+<p>解决方法：
+把问题1反过来看，选择一个简单的分布p(x)，如果我们能找到一个变换f，使得f(x)服从q(y).则只要从p(x)中采样，然后执行f计算即可。任务就变为选择一个p(x)和找到一个f.
+寻找f的过程需要计算q(y)，因此对f有两个要求：</p>
+<ol>
+  <li>f可逆</li>
+  <li>f的行列式计算量不要过大</li>
+</ol>
+
+<p>怎么找到f，f是一个带参数的函数，f的形式确定了，寻找f即寻找f的参数，可以找到一个使得q(y)和数据分布最一致的f（最大似然）.</p>
+
+<h3 id="问题3">问题3</h3>
+<p>x服从p(x)分布，若y=f2(f1(x)),则y服从什么分布？</p>
+
+<p>假设y服从q(y)分布</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>q(y) = p(g1(g2((y))) |det J(g1)|  |det J(g2)|  
+g1=f1^-1
+g2=f2^-1
+</code></pre></div></div>
+
+<p>可以看出，通过一系列变换fi将x变为y，q(y)的形式非常简单。因此，对于问题2，我们可以寻找一系列满足可逆和行列式容易计算这两个条件的f，来构建非常复杂的变换（多层的神经网络）。
+通过梯度方法可以计算出神经网络的参数。概率估计问题被转换为一个深度神经网络的学习问题。</p>
+
+<h2 id="为flow选择f">为flow选择f</h2>
+
+<h3 id="nice和nvp">NICE和NVP</h3>
+
+<ul>
+  <li>一个很巧妙的构造，把x拆成两部分，第一部分不变，第二部分的进行缩放变换，缩放比例是一个关于第一部分的函数，函数可逆，且行列式的值非常容易求得。</li>
+  <li>为了使得每一维都可以被变换，每次拆分时选择不同的维度作为不变的第一部分。</li>
+</ul>
+
+<h3 id="glow">Glow</h3>
+
+<p>在NVP中需要每次拆分选择不同的维度，使用1X1的卷积可以直接混合不同维度之间的信息，GFlow通过在每个NVP的f之间假如一个1X1的卷积（或者一个前向层），可以不需要每次拆分选择不同的维度。</p>
+
+<h2 id="自回归flow">自回归flow</h2>
+
+  </div><a class="u-url" href="/dl/2019/03/20/tts-flow.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">Chao Yang</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Chao Yang</li><li><a class="u-email" href="mailto:chaoyang@mobvoi.com">chaoyang@mobvoi.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/placebokkk"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">placebokkk</span></a></li><li><a href="https://www.twitter.com/jekyllrb"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">jekyllrb</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>My note about learning</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
