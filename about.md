@@ -3,12 +3,16 @@ layout: page
 title: About
 permalink: /about/
 ---
-I am a programmer living in Suzhou,China, working on  Machine Learning, Speech and Natural Language Processing.
+I am a father/sports-lover/programmer living in Suzhou,China.
 
-I love playing and watching basketball game.
+I used to work in Microsoft, AISpeech and a start-up. Now I work as an engineer in Mobvoi, focusing on machine learning, speech and NLP.
+
+My current hobbies inlcude playing with my baby and basketball drill. I also coach a basketball team in spare time.
 
 [github][my-github] /
-[zhihu][my-zhihu] 
+[zhihu][my-zhihu] /
+[linkedin][my-linkedin]
 
 [my-github]: https://github.com/placebokkk
 [my-zhihu]: https://www.zhihu.com/people/yang-chao-5-35
+[my-linkedin]: https://www.linkedin.com/in/chao-yang-a6959333/
