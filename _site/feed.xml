@@ -1,4 +1,311 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2019-07-01T16:31:48+08:00</updated><id>/feed.xml</id><title type="html">Chao Yang</title><subtitle>Note</subtitle><entry><title type="html">Normalize Flow</title><link href="/dl/2019/03/20/tts-flow.html" rel="alternate" type="text/html" title="Normalize Flow" /><published>2019-03-20T10:00:00+08:00</published><updated>2019-03-20T10:00:00+08:00</updated><id>/dl/2019/03/20/tts-flow</id><content type="html" xml:base="/dl/2019/03/20/tts-flow.html">&lt;h2 id=&quot;预备知识&quot;&gt;预备知识&lt;/h2&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-03T22:37:55+08:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Chao Yang</title><subtitle>My note about learning</subtitle><entry><title type="html">kaldi中的解码图构建过程-可视化教程</title><link href="http://localhost:4000/kaldi/asr/2019/06/28/asr-hclg.html" rel="alternate" type="text/html" title="kaldi中的解码图构建过程-可视化教程" /><published>2019-06-28T11:11:59+08:00</published><updated>2019-06-28T11:11:59+08:00</updated><id>http://localhost:4000/kaldi/asr/2019/06/28/asr-hclg</id><content type="html" xml:base="http://localhost:4000/kaldi/asr/2019/06/28/asr-hclg.html">&lt;p&gt;&lt;em&gt;注：本文翻译自 &lt;a href=&quot;https://vpanayotov.blogspot.com/2012/06/kaldi-decoding-graph-construction.html&quot;&gt;Decoding graph construction in Kaldi: 
+A visual walkthrough&lt;/a&gt;, 并增加了一些解释。&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;建议读者阅读此本文前先阅读wfst speech decode的&lt;a href=&quot;https://cs.nyu.edu/~mohri/pub/hbka.pdf&quot;&gt;论文&lt;/a&gt;以及kaldi的解码图构建&lt;a href=&quot;http://kaldi-asr.org/doc/graph_recipe_test.html&quot;&gt;文档&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;草稿，需要校审&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;专有名词&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Grammar fst(G) 语法模型，建模文本的概率，即N-gram语言模型,这切实是个FSA(acceptor),即输入和输出是一样的FST.&lt;/li&gt;
+  &lt;li&gt;Lexicon fst(L) 词典模型，建模音素序列到词序列之间的关系&lt;/li&gt;
+  &lt;li&gt;Context-Dependent fst(C）建模上下文相关音素序列到单音素序列的转换关系&lt;/li&gt;
+  &lt;li&gt;HMM Fst(H) 建模上下文相关音素HMM中的边序列到上下文相关音素序列的转换关系。&lt;/li&gt;
+  &lt;li&gt;self-loop 自跳转，fst中从当前state跳出仍回到该state的边&lt;/li&gt;
+  &lt;li&gt;bi-gram 二阶语言模型，当前词的条件概率只和前一个词有关&lt;/li&gt;
+  &lt;li&gt;backoff 语言模型中，对于训练集中缺失的N阶gram，使用N-1阶的概率进行估计&lt;/li&gt;
+  &lt;li&gt;recipe kaldi里的完成某个任务整个可执行脚本&lt;/li&gt;
+  &lt;li&gt;cd-phone 上下文相关音素&lt;/li&gt;
+  &lt;li&gt;transition-id 解码fst的输入，每个transition-id对应一个(phone, HMM-state, pdf-id, transition-index)元组&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;最近我在使用kaldi时，识别错误率(WER)超过了40%，远高于我用的语言模型和声学模型应该得到的错误率。经过一番折腾，终于找到了原因 – 我没有在lexicon fst(L)里加上自跳转(self-loop)。&lt;/p&gt;
+
+&lt;p&gt;在kaldi中为了使得Grammar FST(G)是determinizable的，在back-off边上使用了一个特殊的’#0’符号(也可以使用epsilon，但是这样G就是non-determinizable)，因此需要在Lexicon FST(L)加上一个自跳转使得compose L和G时可以经过G中输入是’#0’的边. 因为忘记加这个自跳转边,我的bigram G中的back-off边在compose时就被忽略了，使得语言模型没了backoff的能力，解码图里只存在训练集中见过的bigram的路径，从而导致了很高的错误率。而加上self-loop后，不用做其他任何改变，WER就下降到17%。&lt;/p&gt;
+
+&lt;p&gt;这个问题让我意识到自己对于解码图构建过程的细节理解的还不够，所以我决定花些时间认真研究一下。对于大词汇量的hclg而言，各级fst都太大，很难直观观察，我尝试过用GraphViz将解码图转为可视化图片，即使用的模型量级并不大（远小于LVCSR的规模），其占用的内存和cpu也非常巨大。另外，即使忽略机器性能问题，被优化过的HCLG WFST人类也几乎看不懂（至少远超我的理解能力）。所以本文我通过构建一个非常小规模的解码图来演示整个构建过程以帮助理解，这也是工程和科学中常用的方法。有一些很好的关于WFST解码的资料，包括著名的&lt;a href=&quot;https://cs.nyu.edu/~mohri/pub/hbka.pdf&quot;&gt;hbka.pdf&lt;/a&gt;(WFST的圣经) 以及Dan Povey写的非常棒的kaldi解码图构建&lt;a href=&quot;http://kaldi-asr.org/doc/graph_recipe_test.html&quot;&gt;recipe&lt;/a&gt;，这篇blog可以作为这些资料的补充。&lt;/p&gt;
+
+&lt;h3 id=&quot;基本配置&quot;&gt;基本配置&lt;/h3&gt;
+
+&lt;p&gt;本文使用规模很小的grammars和lexicon来演示完整HCLG构建过程. 语言模型方面，会unigram和bigram演示G FST的构建，而在逐级构建HCLG时则为了易懂使用unigram。下面是训练语言模型使用的语料&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;K. Cay
+K. ache
+Cay
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;对应的unigram语言模型是:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;\data\
+ngram 1=5
+
+\1-grams:
+-0.4259687 &amp;lt;/s&amp;gt;
+-99 &amp;lt;s&amp;gt;
+-0.60206 Cay
+-0.60206 K.
+-0.9030899 ache
+
+\end\
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;对应的Bigram model语言模型是:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;\data\
+ngram 1=5
+ngram 2=6
+\1-grams:
+-0.4259687 &amp;lt;/s&amp;gt;
+-99 &amp;lt;s&amp;gt; -0.30103
+-0.60206 Cay -0.2730013
+-0.60206 K. -0.2730013
+-0.9030899 ache -0.09691
+
+\2-grams:
+-0.60206 &amp;lt;s&amp;gt; Cay
+-0.30103 &amp;lt;s&amp;gt; K.
+-0.1760913 Cay &amp;lt;/s&amp;gt;
+-0.4771213 K. Cay
+-0.4771213 K. ache
+-0.30103 ache &amp;lt;/s&amp;gt;
+ 
+\end\
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;lexicon仅包含三个词，其中两个(Cay和K.)是同音词(homophone).&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;ache ey k
+Cay k ey
+K. k ey
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;为了使解码图尽可能简单易懂，尤其是其中用于将cd-phone变换为phone的fst C不要太复杂，总共的音素(phonemes)只有两个(ey和k).&lt;/p&gt;
+
+&lt;p&gt;本文用于生成解码图和pdf图片的脚本在这&lt;a href=&quot;https://vpanayotov.blogspot.com/2012/06/kaldi-decoding-graph-construction.html&quot;&gt;script&lt;/a&gt;,其中也包含了该文章中展示的各fst的pdf，对于一些比较大的fst，可以直接打开pdf放大看. 使用’mkgraphs.sh’前，你需要先配置”KALDI_ROOT”指向机器上Kaldi的安装根目录。&lt;/p&gt;
+
+&lt;h3 id=&quot;语法fst的构建g&quot;&gt;语法FST的构建(G)&lt;/h3&gt;
+&lt;p&gt;参考根据Kaldi中关于解码图创建的文档，下面是产生语法FST的命令，其中省略了移除OOV的步骤，因为这个例子里没有OOV(out-of-vocabulary,语言模型中的词不在lexicon里)的情况：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;cat lm.arpa | \
+    grep -v '&amp;lt;s&amp;gt; &amp;lt;s&amp;gt;' | \
+    grep -v '&amp;lt;/s&amp;gt; &amp;lt;s&amp;gt;' | \
+    grep -v '&amp;lt;/s&amp;gt; &amp;lt;/s&amp;gt;' | \
+    arpa2fst - | \     (step 1)
+    fstprint | \
+    eps2disambig.pl |\ (step 2)
+    s2eps.pl | \       (step 3)
+    fstcompile --isymbols=words.txt \
+      --osymbols=words.txt  \
+      --keep_isymbols=false --keep_osymbols=false | \
+    fstrmepsilon &amp;gt; G.fst  (step 4)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;最终的产生G的fst如下图:&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/G_bi.png&quot; alt=&quot;G_bi&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;下面我们一步一步来看这个脚本命令是如何处理bigram语言模型的。&lt;/p&gt;
+&lt;h4 id=&quot;step-1&quot;&gt;step 1&lt;/h4&gt;
+&lt;p&gt;首先，将语言模型中的非法的&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;s&amp;gt;&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;/s&amp;gt;&lt;/code&gt;的组合移除,因为这些组合会导致G FST是non-determinizable的。(译注：why？)。然后将结果送给arpa2fst，该工具将arpa转为binary格式的FST.&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;请注意，FST中的权重是对概率的自然对数取负，而ARPA文件中的数值是对概率取以10为底的对数。我们来细致的看一下arpa2fst产生的WFST。首先这个WFST有一个开始节点，表示一句话的开始(node 0),接着有三个节点分别表示&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;ache&quot;&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;Cay&quot;&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;K.&quot;&lt;/code&gt; 这三个词(分别是nodes 6, 4 and 5），另外，有一个back-off节点(node 1)和一个终止(final)节点(node 2).我们看一下&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;&amp;lt;s&amp;gt; ache&quot;&lt;/code&gt;这个bigram词串在WFST中的路径，因为在训练语料中没有这个bigram，因此会存在back-off，&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;&amp;lt;s&amp;gt; ache&quot;&lt;/code&gt;对应的路径为0到3，3到1，1到6. 0到3的权重是0;3到1的权重为0.69315，对应了&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;&amp;lt;s&amp;gt;&quot;&lt;/code&gt;的back-off值(−ln(10−0.30103));1到6的权重为2.0794，这是&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;ache&quot;&lt;/code&gt; (−ln(10−0.9030899))的unigram概率.
+&lt;img src=&quot;/assets/images/hclg/G_bi_raw.png&quot; alt=&quot;G_bi_raw&quot; /&gt;&lt;/p&gt;
+&lt;h4 id=&quot;step-2&quot;&gt;step 2&lt;/h4&gt;
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;在step 2中，eps2disambig.pl脚本会将输入中的epsilon(backoff边上)转为特殊字符#0,从而使得fst是determinizable的。words.txt里应该有这个’#0’符号。(译注:)
+&lt;img src=&quot;/assets/images/hclg/G_bi_eps2disambig.png&quot; alt=&quot;G_bi_eps2disambig&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;step-3&quot;&gt;step 3&lt;/h4&gt;
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;Step 3中将”&lt;s&gt;&quot;和&quot;&lt;/s&gt;“符号替换成epsilons。(译注:在WFST中开始和结束这个信息不需要用符号显示表达，WFST本身就蕴含了这个信息，即从开始节点出发和到达final节点)
+&lt;img src=&quot;/assets/images/hclg/G_bi_s2eps.png&quot; alt=&quot;G_bi_s2eps&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;step-4&quot;&gt;step 4&lt;/h4&gt;
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;Step 4 移除epsilon以简化FST(为何能移除？怎么移除？),得到最终的G fst
+&lt;img src=&quot;/assets/images/hclg/G_bi.png&quot; alt=&quot;G_bi&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;word-symbol&quot;&gt;word symbol&lt;/h4&gt;
+&lt;p&gt;WFST的符号表如下&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;eps&amp;gt; 0
+&amp;lt;/s&amp;gt; 1
+&amp;lt;s&amp;gt; 2
+Cay 3
+K. 4
+ache 5 
+#0 6
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;类似的对于unigram，其G FST如下，我们就不再单独分析。
+&lt;img src=&quot;/assets/images/hclg/G_uni.png&quot; alt=&quot;G_uni&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;由于HCLG的构建过程不受G的阶数的影响，为了HCLG的层次FST更简单易读，本文接下都使用unigram的G来展示HCLG的构建过程。如果你想了解bigram G构建出HCLG的过程，可以参考附件中的.pdf文件。&lt;/p&gt;
+
+&lt;h3 id=&quot;词典lexiconfst的构建-l&quot;&gt;词典(Lexicon)FST的构建 (L)&lt;/h3&gt;
+
+&lt;p&gt;Kaldi中，lexicon FST 的准备过程是相对标准的.首先使用脚本&lt;code class=&quot;highlighter-rouge&quot;&gt;add_lex_disambig.pl&lt;/code&gt;为每个同音字(这个例子里是”Cay” 和 “K.”)，再发音之后添加一个单独的辅助符号进行区分，从而词典变成了:&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;ache ey k
+Cay k ey #1
+K. k ey #2
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;make_lexicon_fst.pl用于创建L FST. 这个脚本有四个参数&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;词典文件，其中包含了disambiguation符号(本例子里为#1，#2)&lt;/li&gt;
+  &lt;li&gt;可选：silence音素的概率&lt;/li&gt;
+  &lt;li&gt;可选：silence音素的符号&lt;/li&gt;
+  &lt;li&gt;可选：silence的disambiguation符号（解释下)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;make_lexicon_fst.pl lexicon_disambig.txt 0.5 sil '#'$ndisambig | \
+   fstcompile --isymbols=lexgraphs/phones_disambig.txt \
+    --osymbols=lmgraphs/words.txt \
+    --keep_isymbols=false --keep_osymbols=false |\
+   fstaddselfloops $phone_disambig_symbol $word_disambig_symbol | \
+   fstarcsort --sort_type=olabel \
+   &amp;gt; lexgraphs/L_disambig.fst
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;make_lexicon_fst.pl 脚本会在每个词的发音开头和结束加入可选的silence音素（允许一个词的开头和结尾有silence），并且加入silence的disambiguation符号，一般为同音词已使用的最大disambiguation符号加1，本例中为#2+1=#3,只有在lexicon本身包含同音词需要disambig时才需要为silence引入一个disambiguation符号。具体解释见（？？？）&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/L_disambig_without_silloop.png&quot; alt=&quot;L_disambig_without_silloop&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;另外，记得G中用于backoff的#0辅助符号吗，我们的词典里并没有#0这个词，因此compose时G中输入为#0（要求L中输出时#0）这个路径都被丢弃了，这里的一个trick时加入一个&lt;code class=&quot;highlighter-rouge&quot;&gt;#0:#0&lt;/code&gt;的self-loop边，:左边的#0是发音词典中引入的disambiguation符号，:右边的#0是G中的为了backoff引入的辅助符号.&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/L_disambig.png&quot; alt=&quot;L_disambig&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;带有disambiguation符号的的phone符号表如下&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;eps&amp;gt; 0
+ey 15
+k 22
+sil 42
+#0 43
+#1 44
+#2 45
+#3 46
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;一般phones.txt这个文件里symbol id从0开始连续的，注意这里不是0，1，2，3而是0，15，22，42，这是因为作者从一个真实声学模型的音素集里只抽取了两个音素，但是为了复用该声学模型音素集对应的H，仍保持了符号id. 另外可以看出，#x是从最大的id继续增加的.&lt;/p&gt;
+
+&lt;h3 id=&quot;lg-composition&quot;&gt;LG composition&lt;/h3&gt;
+
+&lt;p&gt;L和G的 composition操作如下&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;fsttablecompose L_disambig.fst G.fst |\
+  fstdeterminizestar --use-log=true | \
+  fstminimizeencoded  &amp;gt; LG.fst
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;这个命令里的&lt;code class=&quot;highlighter-rouge&quot;&gt;fsttablecompose/fstdeterminizestar/fstminimizeencoded&lt;/code&gt;均为kaldi实现的fst操作，而不是openfst的命令，这个实现和openfst的标准compose/determinize/minimize有些微小的区别. 具体区别参考 &lt;a href=&quot;http://kaldi-asr.org/doc/fst_algo.html&quot;&gt;kaldi-fst&lt;/a&gt;&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/LG_uni.png&quot; alt=&quot;LG_uni&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;上下文相关音素context-dependent-phones-cd-phonesfst-c&quot;&gt;上下文相关音素(context-dependent phones, cd-phones)FST (C)&lt;/h3&gt;
+&lt;p&gt;&lt;em&gt;关于C FST以及CLG的处理设计&lt;code class=&quot;highlighter-rouge&quot;&gt;#-1&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;$&lt;/code&gt;以及&lt;code class=&quot;highlighter-rouge&quot;&gt;logical/physical&lt;/code&gt;的概念，是kaldi里理解起来比较麻烦的部分，本文仅简要介绍帮助初步理解，更深入理解需要看kaldi的文档/代码以及其他介绍&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;在Kaldi中一般不会显示创建出单独的C FST再和LG compose，而是使用fstcomposecontext工具根据LG动态的生成CLG（注：因为穷举所有的cd-phones非常浪费，根据LG中的需要动态的创建用到的&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phones&lt;/code&gt;会节省很多开销）。这里，处于演示的目的，现实的创建一个C FST。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;fstmakecontextfst \
+ --read-disambig-syms=disambig_phones.list \\
+ --write-disambig-syms=disambig_ilabels.list \
+ $phones $subseq_sym ilabels |\
+ fstarcsort --sort_type=olabel &amp;gt; C.fst
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;创建的上下文相关的FST如下（C, 将&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;转换为上下文无关音素的FST）&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/C.png&quot; alt=&quot;C&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;该FST中，每个state都有一些自跳转，处理L中引入的辅助符号#X.&lt;/p&gt;
+
+&lt;p&gt;C FST的输入符号是triphone的id（这里已经把id转换为对应的可读符号/left-ctx/phone/right-ctx）, 实际上，kaldi用一个ilabel_info数据结构来存储C fst的输入符号的信息。ilabel_info是一个成员是数组的数组，数组里的每个元素记录一个C fst的输入符号信息。&lt;/p&gt;
+
+&lt;p&gt;举个例子，若triphone “a/b/c”在C中的symbol id是10(id从0开始)，则ilabel_info中的第11个元素存储了”a/b/c”的完整上下文信息，若a，b，c在L中的id分别为10，11，12，则该元素存储的信息为[10 11 20].&lt;/p&gt;
+
+&lt;p&gt;ilabel_info中还会存储#X符号，但是会将其在L中的id取负，如在L中#1的id是44，则在C中的input也会有一个对应的#1符号，其存储为[-44],之所以用符号，是为了方便直接判断当前是不是辅助符号。&lt;/p&gt;
+
+&lt;p&gt;以(N=3,P=1)为例每个边的格式为a/b/c:c，输入是a/b/c，即当前音素是b，左边上下文是a，右边上下文音素是c，要注意的是，边上输出不是当前音素b，而是下一个音素c.这就带来两个问题：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;假设某个词发音是a b c,对于词的第一个音素，a其三音素为&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;eps&amp;gt;/a/b&lt;/code&gt;,对应的边为&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;eps&amp;gt;/a/b：b&lt;/code&gt;，这时输出是b，那输出的a的边应该是什么样的，可以是&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;eps&amp;gt;/&amp;lt;eps&amp;gt;/a&lt;/code&gt;，而在kaldi中统一用#-1表示输入是空的，所以ilabel_info还存储了符号#-1，用于表示从初始状态开始先接受空输入产生音素。在start状态后会有(N-P-1)个#-1输入，才进入到第一个正常的&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;输入的边。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;当前上下文音素是a/b/c时输出了c，但是如果到了句子末尾，接下来的当前音素是&lt;code class=&quot;highlighter-rouge&quot;&gt;b/c/&amp;lt;eps&amp;gt;&lt;/code&gt;应该输出什么呢？可以输出&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;eps&amp;gt;&lt;/code&gt;,但kaldi为C FST引入了一个专用符号$，从而使的C是output deterministic的，在和LG compose时更加高效。在final状态前会有(N-P-1)个$输出。&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;既然在C中加入了$这个输出，LG中也需要加入输入为$的边。使用Kaldi的工具fstaddsubsequentialloop为LG进行修改。&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;fstaddsubsequentialloop ${subseq_sym} cascade/LG_uni.fst &amp;gt; cdgraphs/LG_uni_subseq.fst
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;可以看到，每个LG中的final状态用”$:ϵ”边连接到一个带self-loop边的新的final状态上。有self-loop是为了处理C中连续(N-P-1)个”$”输出。&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/LG_uni_subseq.png&quot; alt=&quot;LG_uni_subseq&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;clg-cascade&quot;&gt;CLG cascade&lt;/h3&gt;
+
+&lt;p&gt;C/LG compose的脚本如下，过程和L/G compose 一样&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;fsttablecompose cdgraphs/C.fst cdgraphs/LG_uni_subseq.fst |\
+  fstdeterminizestar --use-log=true |\
+  fstminimizeencoded \
+  &amp;gt; cascade/CLG_uni.fst
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;得到的CLG fst如下&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/CLG_uni.png&quot; alt=&quot;CLG_uni&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;对于CLG FST，我们可以使用一个FST将输入&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;进一步优化，减小&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;的个数。&lt;/p&gt;
+
+&lt;p&gt;注意，kaldi为了减小&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;的个数，一般使用决策树绑定，kaldi的决策数绑定支持将HMM中arc或者state的绑定，我们只讨论arc的绑定，绑定后的arc称为senon。加入某些&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt; topo内对应的arc都绑定到同样的senone上，这些&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;（logical &lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;）对应的同一个physical &lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;，kaldi会随便在同一组logical &lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;中选一个作为其phsical &lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;的id。目前CLG中的输入可以认为是logical &lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;，即所有可能组合的音素，根据决策树绑定，进一步减小输入。&lt;/p&gt;
+
+&lt;p&gt;可以构建一个fst，将physical&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;映射为logical&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;，&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;make-ilabel-transducer --write-disambig-syms=cdgraphs/disambig_ilabels_remapped.list\
+ cdgraphs/ilabels $tree $model cdgraphs/ilabels.remapped \
+ &amp;gt; cdgraphs/ilabel_map.fst
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ilabel_map.fst是physical到logical的映射，如下图&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/ilabel_map.png&quot; alt=&quot;ilabel_map&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;将该fst和CLG fst compose，即可得到减小后的输入为physical &lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;的CLG了。通过增加这个physical到logical的映射，unigram CLG的状态从24降到17，边从38降到26&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/CLG_uni_reduced.png&quot; alt=&quot;CLG_uni_reduced&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;kaldi中，把sil当作是上下文无关的音素，所有的&lt;code class=&quot;highlighter-rouge&quot;&gt;x/sil/y&lt;/code&gt;都绑定到同一个&lt;code class=&quot;highlighter-rouge&quot;&gt;physical cd-phone&lt;/code&gt;上，可以在该fst里看到这个映射。另外，我们的例子中，有一条边是&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;lt;eps&amp;gt;/ey/&amp;lt;eps&amp;gt;:ey/ey/&amp;lt;eps&amp;gt;&lt;/code&gt;，表示对于音素’ey’,若其左边是’ey’,右边是&lt;code class=&quot;highlighter-rouge&quot;&gt;'&amp;lt;eps&amp;gt;'&lt;/code&gt;,等价于左边是&lt;code class=&quot;highlighter-rouge&quot;&gt;'&amp;lt;eps&amp;gt;'&lt;/code&gt;右边是&lt;code class=&quot;highlighter-rouge&quot;&gt;'&amp;lt;eps&amp;gt;'&lt;/code&gt;.你可以用kaldi的draw-tree工具把tree中的信息输出，&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;&amp;lt;eps&amp;gt;/ey/&amp;lt;eps&amp;gt;&quot;&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;ey/ey/&amp;lt;eps&amp;gt;&quot;&lt;/code&gt;的HMM中的PDF是一样的。&lt;/p&gt;
+
+&lt;h3 id=&quot;h-fst&quot;&gt;H FST&lt;/h3&gt;
+
+&lt;p&gt;H fst的功能是把&lt;code class=&quot;highlighter-rouge&quot;&gt;transition-id&lt;/code&gt;序列映射到&lt;code class=&quot;highlighter-rouge&quot;&gt;cd-phone&lt;/code&gt;序列. kaidi中，&lt;code class=&quot;highlighter-rouge&quot;&gt;一个cd-phone的当前phone，cd-phone的一个state，state上的一条边，以及其对应的pdf&lt;/code&gt;有一个唯一标识&lt;code class=&quot;highlighter-rouge&quot;&gt;transition-id&lt;/code&gt;.最终解码fst的输入不是pdf-id而是&lt;code class=&quot;highlighter-rouge&quot;&gt;transition-id&lt;/code&gt;. &lt;code class=&quot;highlighter-rouge&quot;&gt;H fst&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;L fst&lt;/code&gt;看起来很类似.&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/Ha.png&quot; alt=&quot;Ha&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这个fst从一个start节点（同时也是final节点，这个fst是个closure）开始，进入到各个cd-phone的HMM。每个physical cd-phone输出对应一个hmm state的序列的输入（kaldi中其实是transition id序列）。注意并没有一个输出是&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;ey/ey/&amp;lt;eps&amp;gt;&quot;&lt;/code&gt;的序列，因为&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;ey/ey/&amp;lt;eps&amp;gt;&quot;&lt;/code&gt;是一个logical cd-phone，其physical cd-phone 是&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;&amp;lt;eps&amp;gt;/ey/&amp;lt;eps&amp;gt;&quot;&lt;/code&gt;. 另外，start节点上还有一些自跳转用于处理C fst里引入的辅助符号，如&lt;code class=&quot;highlighter-rouge&quot;&gt;&quot;#-1:#-1&quot;&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;这个FST的输入标签是我用一个自己写的工具&lt;a href=&quot;https://bitbucket.org/vdp/kaldi-rm1-mod/src/4fb1791d1210/cxx/fstmaketidsyms/fstmaketidsyms.cc&quot;&gt;fstmaketidsyms&lt;/a&gt;打印出来，这个标签展示了一个transition-id包含的四个信息（下划线分割），包括对应的cd-phone的对应的phone，cd-phone的中的HMM state，pdf的id以及该state上的对应的出度边的在该state上的index. 例如”k_1_739_1”表示该transition-id对应了音素k拓扑的一个state上的第1个出度边，其绑定到的pdf-id是739.（音素k的不同的cd-phone，同样位置的边上的pdf可能会绑定到不同的pdf上）
+注意这个fst里没有包含hmm的自跳转，所以这个是Ha fst而不是H fst.当HCLG compose完了在加入HMM-self.&lt;/p&gt;
+
+&lt;h3 id=&quot;hclg-fst&quot;&gt;HCLG fst&lt;/h3&gt;
+
+&lt;p&gt;下面命令用于创建完整的HCLG（不包含HMM中的状态上的自跳转边）&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;fsttablecompose Ha.fst CLG_reduced.fst | \
+   fstdeterminizestar --use-log=true | \
+   fstrmsymbols disambig_tstate.list | \
+   fstrmepslocal  | fstminimizeencoded \
+   &amp;gt; HCLGa.fst
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Ha fst和CLG fst(加入了physical到logical的mapping)进行compose， determinize操作， 然后将辅助符号(#n,compose和determinze之后这些辅助符号就没用了)用epsilons替代，然后再做minimize.&lt;/p&gt;
+
+&lt;p&gt;下图是输出结果，其中输入符号和上面Ha的产生方式一样，也是用&lt;a href=&quot;https://bitbucket.org/vdp/kaldi-rm1-mod/src/4fb1791d1210/cxx/fstmaketidsyms/fstmaketidsyms.cc&quot;&gt;fstmaketidsyms&lt;/a&gt;工具产生。&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/HCLGa_uni.png&quot; alt=&quot;HCLGa_uni&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;然后我们加上HMM里的自跳转边。&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;add-self-loops --self-loop-scale=0.1 \
+    --reorder=true $model &amp;lt; HCLGa.fst &amp;gt; HCLG.fst
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;add-self-loops在加入self-loop时，会根据self-loop-scale参数调整概率（细节见kaldi文档）并且会对transition重排序(reorder),这个重排序操作使得对于每一帧特征，不需要计算两次同样的声学模型得分（对于通常的Bakis从左到右的HMM拓扑），从而可以使得解码过程更快。最终HCLG的解码涂伟&lt;/p&gt;
+
+&lt;p style=&quot;width: 640px;&quot; class=&quot;center&quot;&gt;&lt;img src=&quot;/assets/images/hclg/HCLG_uni.png&quot; alt=&quot;HCLG_uni&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;基本上就这些了，感谢阅读。&lt;/p&gt;</content><author><name></name></author><summary type="html">注：本文翻译自 Decoding graph construction in Kaldi: A visual walkthrough, 并增加了一些解释。</summary></entry><entry><title type="html">Normalize Flow</title><link href="http://localhost:4000/dl/2019/03/20/tts-flow.html" rel="alternate" type="text/html" title="Normalize Flow" /><published>2019-03-20T10:00:00+08:00</published><updated>2019-03-20T10:00:00+08:00</updated><id>http://localhost:4000/dl/2019/03/20/tts-flow</id><content type="html" xml:base="http://localhost:4000/dl/2019/03/20/tts-flow.html">&lt;h2 id=&quot;预备知识&quot;&gt;预备知识&lt;/h2&gt;
 &lt;h3 id=&quot;雅各比阵-j&quot;&gt;雅各比阵 J&lt;/h3&gt;
 
 &lt;ul&gt;
@@ -61,7 +368,7 @@ g2=f2^-1
 
 &lt;p&gt;在NVP中需要每次拆分选择不同的维度，使用1X1的卷积可以直接混合不同维度之间的信息，GFlow通过在每个NVP的f之间假如一个1X1的卷积（或者一个前向层），可以不需要每次拆分选择不同的维度。&lt;/p&gt;
 
-&lt;h2 id=&quot;自回归flow&quot;&gt;自回归flow&lt;/h2&gt;</content><author><name></name></author><summary type="html">预备知识 雅各比阵 J</summary></entry><entry><title type="html">语音合成Tacotron</title><link href="/tts/2019/02/15/tts-tacotron.html" rel="alternate" type="text/html" title="语音合成Tacotron" /><published>2019-02-15T11:12:00+08:00</published><updated>2019-02-15T11:12:00+08:00</updated><id>/tts/2019/02/15/tts-tacotron</id><content type="html" xml:base="/tts/2019/02/15/tts-tacotron.html">&lt;h1 id=&quot;tacotron系列论文笔记&quot;&gt;Tacotron系列论文笔记&lt;/h1&gt;
+&lt;h2 id=&quot;自回归flow&quot;&gt;自回归flow&lt;/h2&gt;</content><author><name></name></author><summary type="html">预备知识 雅各比阵 J</summary></entry><entry><title type="html">语音合成Tacotron</title><link href="http://localhost:4000/tts/2019/02/15/tts-tacotron.html" rel="alternate" type="text/html" title="语音合成Tacotron" /><published>2019-02-15T11:12:00+08:00</published><updated>2019-02-15T11:12:00+08:00</updated><id>http://localhost:4000/tts/2019/02/15/tts-tacotron</id><content type="html" xml:base="http://localhost:4000/tts/2019/02/15/tts-tacotron.html">&lt;h1 id=&quot;tacotron系列论文笔记&quot;&gt;Tacotron系列论文笔记&lt;/h1&gt;
 
 &lt;ul class=&quot;task-list&quot;&gt;
   &lt;li class=&quot;task-list-item&quot;&gt;&lt;input type=&quot;checkbox&quot; class=&quot;task-list-item-checkbox&quot; disabled=&quot;disabled&quot; checked=&quot;checked&quot; /&gt;TACOTRON: TOWARDS END-TO-END SPEECH SYNTHESIS&lt;/li&gt;
@@ -213,7 +520,7 @@ We further show that using this compact acoustic intermediate representation all
 
 &lt;p&gt;Style Tokens: Unsupervised Style Modeling, Control and Transfer in End-to-End Speech Synthesis&lt;/p&gt;
 
-&lt;p&gt;Predicting Expressive Speaking Style From Text in End-to-End Speech Synthesis&lt;/p&gt;</content><author><name></name></author><summary type="html">Tacotron系列论文笔记</summary></entry><entry><title type="html">Attention/Transformer/Transformer XL</title><link href="/dl/2019/02/10/dl-transformer.html" rel="alternate" type="text/html" title="Attention/Transformer/Transformer XL" /><published>2019-02-10T10:00:00+08:00</published><updated>2019-02-10T10:00:00+08:00</updated><id>/dl/2019/02/10/dl-transformer</id><content type="html" xml:base="/dl/2019/02/10/dl-transformer.html">&lt;h1 id=&quot;attentiontransformertransformer-xl&quot;&gt;Attention/Transformer/Transformer XL&lt;/h1&gt;
+&lt;p&gt;Predicting Expressive Speaking Style From Text in End-to-End Speech Synthesis&lt;/p&gt;</content><author><name></name></author><summary type="html">Tacotron系列论文笔记</summary></entry><entry><title type="html">Attention/Transformer/Transformer XL</title><link href="http://localhost:4000/dl/2019/02/10/dl-transformer.html" rel="alternate" type="text/html" title="Attention/Transformer/Transformer XL" /><published>2019-02-10T10:00:00+08:00</published><updated>2019-02-10T10:00:00+08:00</updated><id>http://localhost:4000/dl/2019/02/10/dl-transformer</id><content type="html" xml:base="http://localhost:4000/dl/2019/02/10/dl-transformer.html">&lt;h1 id=&quot;attentiontransformertransformer-xl&quot;&gt;Attention/Transformer/Transformer XL&lt;/h1&gt;
 
 &lt;h2 id=&quot;transformer&quot;&gt;Transformer&lt;/h2&gt;
 
@@ -357,7 +664,7 @@ We further show that using this compact acoustic intermediate representation all
 &lt;p&gt;code&lt;/p&gt;
 &lt;ul&gt;
   &lt;li&gt;https://github.com/kimiyoung/transformer-xl&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">Attention/Transformer/Transformer XL</summary></entry><entry><title type="html">Jekyll Example</title><link href="/jekyll/update/2019/01/01/welcome-to-jekyll.html" rel="alternate" type="text/html" title="Jekyll Example" /><published>2019-01-01T11:11:59+08:00</published><updated>2019-01-01T11:11:59+08:00</updated><id>/jekyll/update/2019/01/01/welcome-to-jekyll</id><content type="html" xml:base="/jekyll/update/2019/01/01/welcome-to-jekyll.html">&lt;p&gt;You’ll find this post in your &lt;code class=&quot;highlighter-rouge&quot;&gt;_posts&lt;/code&gt; directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run &lt;code class=&quot;highlighter-rouge&quot;&gt;jekyll serve&lt;/code&gt;, which launches a web server and auto-regenerates your site when a file is updated.&lt;/p&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">Attention/Transformer/Transformer XL</summary></entry><entry><title type="html">Jekyll Example</title><link href="http://localhost:4000/jekyll/update/2019/01/01/welcome-to-jekyll.html" rel="alternate" type="text/html" title="Jekyll Example" /><published>2019-01-01T11:11:59+08:00</published><updated>2019-01-01T11:11:59+08:00</updated><id>http://localhost:4000/jekyll/update/2019/01/01/welcome-to-jekyll</id><content type="html" xml:base="http://localhost:4000/jekyll/update/2019/01/01/welcome-to-jekyll.html">&lt;p&gt;You’ll find this post in your &lt;code class=&quot;highlighter-rouge&quot;&gt;_posts&lt;/code&gt; directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run &lt;code class=&quot;highlighter-rouge&quot;&gt;jekyll serve&lt;/code&gt;, which launches a web server and auto-regenerates your site when a file is updated.&lt;/p&gt;
 
 &lt;p&gt;To add new posts, simply add a file in the &lt;code class=&quot;highlighter-rouge&quot;&gt;_posts&lt;/code&gt; directory that follows the convention &lt;code class=&quot;highlighter-rouge&quot;&gt;YYYY-MM-DD-name-of-post.ext&lt;/code&gt; and includes the necessary front matter. Take a look at the source for this post to get an idea about how it works.&lt;/p&gt;
 
