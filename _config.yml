@@ -24,14 +24,18 @@ github_username:  placebokkk
 
 # Build settings
 markdown: kramdown
-highlighter: rouge
-excerpt_separator: <!--more-->
+theme: minima
 plugins:
   - jekyll-feed
-exclude:
-  - Gemfile
-  - Gemfile.lock
-kramdown:
-  input: GFM
-  auto_ids: true
-  syntax_highlighter: rouge
+
+# Exclude from processing.
+# The following items will not be processed, by default. Create a custom list
+# to override the default setting.
+# exclude:
+#   - Gemfile
+#   - Gemfile.lock
+#   - node_modules
+#   - vendor/bundle/
+#   - vendor/cache/
+#   - vendor/gems/
+#   - vendor/ruby/
