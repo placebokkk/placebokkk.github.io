@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "理解kaldi中的decoder(一）- 基础和viterbi解码"
-date:   2019-07-30 11:11:59 +0800
+date:   2019-07-31 11:11:59 +0800
 categories: kaldi
 ---
 

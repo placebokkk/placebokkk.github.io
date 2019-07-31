@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "深度学习中的概率生成模型(一) - FLOW"
-date:   2019-07-30 11:11:59 +0800
+date:   2019-03-30 11:11:59 +0800
 categories: deep-learning
 ---
 

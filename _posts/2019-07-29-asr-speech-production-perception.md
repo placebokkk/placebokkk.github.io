@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "语音产生和感知原理"
-date:   2019-07-25 10:00:00 +0800
+date:   2019-07-29 10:00:00 +0800
 categories: asr
 ---
 {: class="table-of-content"}
