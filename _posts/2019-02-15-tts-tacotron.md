@@ -1,9 +1,10 @@
 ---
 layout: post
-title:  "语音合成Tacotron"
+title:  "语音合成模型之Tacotron"
 date:   2019-02-15 11:12:00 +0800
-categories: TTS
+categories: tts
 ---
+
 # Tacotron系列论文笔记
 
 - [x] TACOTRON: TOWARDS END-TO-END SPEECH SYNTHESIS
@@ -50,7 +51,7 @@ In this paper, we present Tacotron, an end-to-end generative text-to-speech mode
 Given <text, audio> pairs, the model can be trained completely from scratch with random initialization.
 We present several key techniques to make the sequence-to-sequence framework perform well for this challenging task.
 Tacotron achieves a 3.82 subjective 5-scale mean opinion score on US English,
-outperforming a production parametric system in terms of naturalness.
+outperforming a production paravmetric system in terms of naturalness.
 In addition, since Tacotron generates speech at the frame level, it’s substantially faster than sample-level autoregressive methods.
 
 专业术语
@@ -66,12 +67,11 @@ frame-level 帧级别，对于8K采样的声音，如果帧移是10ms，每秒80
 从帧级别的特征，可以生成采样点级别的信号。
 samlple-level 采样点级别，对于8K采样的声音，每秒生成8000个采样点。
 
-
 Tacotron是Encoder-Decoder 结构的网络。
 
-Encoder = WordEmbeding+PreNet+CBHG
+其中 Encoder = WordEmbeding+PreNet+CBHG
 
-CBHG
+### CBHG
 
 Convolution Bank + Highway + bidirectional-GRU
 
@@ -90,7 +90,7 @@ CBHG中还使用了res连接，通过Convolution Bank的序列，最后使用一
 
 
 
-Decoder
+### Decoder
 
 Decoder部分分两个网络
 * 第一部分是PreNet+Attention RNN网络，该网络输出mel谱参数。
@@ -117,15 +117,18 @@ PreNet+Attention RNN直接输出线性谱,效果不好，论文中有图片比�
 PreNet+Attention RNN输出mel谱然后再经过CBHG网络输出线性谱，后者看起来共振峰清晰很多。
 
 
-Attention Align的图
+### Attention Align
+
 decoder中的输出和encoder中的输出做attention，因为TTS的输出和输入是同样的顺序（语音识别也是同序的，机器翻译是不同序的），
 因此，因此我们期望attention align的权重图，对于每个输出都主要align在某个输入时刻点上，且是平滑变化的，反映到图上时应该是一个
 清晰的从左到右上升的台阶形状。  
 
+### Tacotron的MOS
 Tacotron的MOS值好于当时最好的参数模型。使用了Griffin-Lim的Vocoder，效果比当时最好的拼接系统略差。
-Tacotron 3.82 ± 0.085  
-Parametric 3.69 ± 0.109
-Concatenative 4.09 ± 0.119
+
+* Tacotron 3.82 ± 0.085  
+* Parametric 3.69 ± 0.109
+* Concatenative 4.09 ± 0.119
 
 ## 2.Tacotron+Wavenet
 Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions

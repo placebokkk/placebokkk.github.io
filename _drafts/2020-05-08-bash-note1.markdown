@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Useful Bash command"
+title:  "Bash笔记(一）- 基础概念"
 date:   2019-05-08 11:11:59 +0800
 categories: bash
 ---
@@ -26,3 +26,23 @@ paste <(ls *.wav) <(ls -d -1 "$PWD/"*.wav) > wav.scp
 
 # ln
 B目录里link A目录中的所有文件
+```
+cd B
+ln -fs A/* ./ 
+```
+copy
+cp -rL /ex
+
+# bash
+获得不带路径和后缀的文件名
+```
+s='/export/share-nfs-1/chaoyang/code/grpc_python/asr/file.txt'
+s=${s##*/};echo ${s%.*}
+```
+
+```
+fbname=$(basename "$fullfile" | cut -d. -f1)
+```
+
+
+

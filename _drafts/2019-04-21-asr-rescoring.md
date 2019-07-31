@@ -2,7 +2,7 @@
 layout: post
 title:  "语音识别中的LM rescoring"
 date:   2019-04-21 10:00:00 +0800
-categories: ASR
+categories: asr
 ---
 语音识别静态解码中，一般使用语言模型不会太大
 

@@ -2,8 +2,14 @@
 layout: post
 title:  "Attention/Transformer/Transformer XL"
 date:   2019-02-10 10:00:00 +0800
-categories: DL
+categories: deep-learning
 ---
+
+{: class="table-of-content"}
+* TOC
+{:toc}
+
+
 # Attention/Transformer/Transformer XL
 
 ## Transformer

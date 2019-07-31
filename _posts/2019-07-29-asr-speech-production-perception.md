@@ -2,8 +2,12 @@
 layout: post
 title:  "语音产生和感知原理"
 date:   2019-07-25 10:00:00 +0800
-categories: ASR
+categories: asr
 ---
+{: class="table-of-content"}
+* TOC
+{:toc}
+
 **TODO**
 * 增加图片
 
