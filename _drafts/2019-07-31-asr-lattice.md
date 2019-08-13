@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "理解kaldi中的Lattice"
-date:   2019-07-30 11:11:59 +0800
+date:   2019-08-07 11:11:59 +0800
 categories: kaldi
 ---
 

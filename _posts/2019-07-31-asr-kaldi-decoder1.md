@@ -37,7 +37,7 @@ Kaldi中抽象出DecodableInterface的概念，将解码器算法和声学模型
 
 Decoder对象上只绑定了一个解码图Fst对象(HCLG).DecodableInterface对象在调用Decode时传入。
 
-DecodableInterface对于Decoder相当于一个Data Provider，其本身接受0-T时刻的特征数据，每个时刻D维特征，输出每个时刻数据特征在解码图输入单元上的得分。（具体到hclg里，是在上下文相关音素绑定后的状态上的概率值。但是解码图的输入单元可以是其他的，比如essen的CTC的模型里，使用的建模单元就更加粗力度）
+DecodableInterface用于计算声学模型的输出，对于Decoder相当于一个Data Provider，其主要接口为LogLikelihood，该接口返回t时刻，transition-id对应的声学模型得分。声学模型的输出是特征在上下文相关音素绑定后的状态（pdf-id）上的概率值，但在kaldi的hclg解码图FST里，边上输入是transition-id，这个数据结构包含了比pdf-id更多的信息。在LogLikelihood内部会把需要计算的transition-id转为pdf-id，然后计算pdf-id对应的得分。
 
 Decoder
 
@@ -105,11 +105,11 @@ SimpleDecoder里实现的token-pass算法是viterbi算法的一种实现方法�
 
 **PruneToks**
 
-在t时刻全部扩展完成后，对所有的新token再扫描一遍，只保留那些cost和最小cost差值小于某个阈值(beam)的token。
+在t时刻全部扩展完成后，对所有的新token再扫描一遍，只保留那些cost和最小cost差值小于某个阈值(beam)的token。将prune后不包含token的state从map中去除。
 
 **GetBestPath**
 
-当到达T时刻，只要找出各个cur_toks_里cost最小的state(如果要求final，则必须使用final状态中的token)，然后根据其backtrace指针不断往前回溯找到所有的token，把这些token记录的arc上的output输出即可。GetBestPath里实际是用token里的arc信息构建了一个Lattice，不过这个Lattice其是一条直线。每个状态都只有一个边。
+当到达T时刻，只要找出各个cur_toks_里cost最小的state(如果要求final，则必须使用final状态中的token)，然后根据其backtrace指针不断往前回溯找到所有的token，把这些token记录的arc上的output输出即可。GetBestPath里实际是用token里的arc信息构建了一个Lattice，不过这个Lattice其是一条直线。每个状态都只有一个边。由于有输入是epsilon的边，所以这条路径的边个数可能大于语音的帧数。
 
 以上就是全部算法。谢谢阅读。
 

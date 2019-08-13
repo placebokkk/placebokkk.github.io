@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "理解kaldi中的状态绑定"
-date:   2019-07-30 11:11:59 +0800
+date:   2019-08-06 11:11:59 +0800
 categories: kaldi
 ---
 
