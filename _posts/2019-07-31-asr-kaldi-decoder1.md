@@ -68,12 +68,12 @@ SimpleDecoder里实现的token-pass算法是viterbi算法的一种实现方法�
 
 ### Token 
 
-* token可以理解为在state上，
-* prev_指向前一个token（从哪个token扩展来的），引用计数
-* cost_累计cost，t时刻，token A经过边 `arc(pdf-id, word-id, graph_weight)` 扩展为token B，计算t时刻特征`Ft`在声学模型上输出是`pdf-id`的得分得到`am_score`, B的cost等于 `A的cost + (-am_score) + graph_weight`
-* arc_, token构建时传入的是grpah上对应的arc，而token内部实际存的的arc是LatticeArc，hclg用的StdArc类型的arc里weight只能存一个值，而LatticeArc里weight把acoustic和graph cost* 分开存储，因此在回溯时，可以分别输出acoustic得分和lm得分.
-* TokenDelete() 利用用引用计数的方式对token进行释放管理。
-* 重载了 < 符号，比较两个token的cost大小, 若 a.cost > b.cost, 则a < b.
+* token可以理解为在state上
+* **prev_** 指向前一个token（从哪个token扩展来的），引用计数
+* **cost_** 累计cost，t时刻，token A经过边 `arc(trans-id, word-id, graph_weight)` 扩展为token B。 B的cost等于 `A的cost + (-am_score) + graph_weight`。其中am_score为t时刻特征`Ft`的声学模型上对应的`pdf-id`(`trans-id`对应的`pdf-id`)的得分。
+* **arc_** token构建时传入的是grpah上对应的StdArc类型的arc，而token内部实际存储的arc类型是LatticeArc，hclg用的StdArc类型的arc里weight只能存一个值，而LatticeArc里weight把acoustic和graph cost分开存储，因此在回溯时，可以分别输出acoustic得分和lm得分.
+* **TokenDelete()** 利用用引用计数的方式对token进行释放管理。
+* 重载了 **<** 符号，比较两个token的cost大小, 若 a.cost > b.cost, 则a < b.
 
 ### SimpleDecoder类
 * prev_toks_ 保存前一帧（t-1时刻）的所有tokens
@@ -90,18 +90,18 @@ SimpleDecoder里实现的token-pass算法是viterbi算法的一种实现方法�
 
 **ProcessEmitting**
 
-每一时刻t，对prev_toks_(t-1时刻)里每个状态里的token（SimpleDecoder只找最优路径，每个state只要保留一个token即可，这就是viterbi算法。每个状态上可能有多个t时刻的token，记录从不同的边到达该状态，NbestDecoder），根据该状态的arc转移，如arc的输入不是epsilon，则创建新的token，放进cur_toks_(t时刻)里。若新的token对应的state上在t时刻已经有了token，则比较两者的cost，选择cost小的.
+每一时刻t，对prev_toks_(t-1时刻)里每个状态上的token（SimpleDecoder只找最优路径，每个state只要保留一个token即可，这就是viterbi算法。若想保留全局的Nbest路径，每个状态上需要记录N个cost最小的t时刻token），根据该状态的arc进行转移。若arc的输入不是epsilon，则创建一个新的token，放进cur_toks_(t时刻)里。若新的token对应的state上在t时刻已经有了token，则比较两者的cost，保留cost小的.
 
-因为解码图有很多state，每个state有很多跳转边，如果每个时刻都保留所有扩展出的tokens，想象一下我们的HCLG有那么多state，每个state上都有0到T时刻的token，这些token太多了，计算和存储都非常大。所以需要剪枝删除一些token，最简单的方法就是每一个时刻t，记录t时刻扩展出的新token中的最小cost，在扩展t时刻token时，只有保留cost和该最小cost差值小于某个阈值(beam)的新token。这种根据阈值进行剪枝的搜索方法叫beam search，其可以减少计算和存储开销，但可能丢失全局cost最小的那条路径。
+因为解码图包含大量state，如果每个时刻都保留所有扩展出的tokens，想象一下我们的HCLG有那么多state，每个state上0到T时刻的token都要保存，带来的计算和存储都非常大。所以需要剪枝删除一些token，一个简单的方法为：在每一个时刻t，记录t时刻扩展出的新token中的最小的cost，在扩展t时刻token时，只有保留cost和该最小cost差值小于某个阈值(beam)的新token。这种根据阈值进行剪枝的搜索方法叫beam search，其可以减少计算和存储开销，但可能丢失全局cost最小的那条路径。
 
 
 **ProcessNonemitting**
 
-而对于输入是epsilon的边，虽然会跳转，但是这是不消耗时间的，因此需要单独处理. 在ProcessEmitting完成后，若cur_toks_中的token所在状态有输入为eps边，则将这些token继续扩展并放入cur_toks_里。(所以自跳转上的边的输入一定不是epsilon，不然这一步无法结束了。)代码中，fst里保留0作为epsilon的index，所以代码里根据arc.ilabel是否为0判断输入是否为epsilon。
+对于输入是epsilon的边，跳转是不消耗时间的，因此需要单独处理。 在ProcessEmitting完成后，若cur_toks_中的token所在状态存在输入为eps边，则将这些token继续扩展并放入cur_toks_里。(所以自跳转上的边的输入一定不是epsilon，不然这一步无法结束。)代码中，fst里保留0作为epsilon的index，所以代码中根据arc.ilabel是否为0判断输入是否为epsilon。
 
-在ProcessEmitting中，一个时间点，每个token只能沿着输入非epsilon的arc扩展一步，而对于某个ProcessNonemitting，如果某个state后面有连续多个epsilon的arc，都是需要向后扩展token的，所以在实现上用了一个队列来进行**深度优先搜索**，代码上和ProcessEmitting有些区别。
+在ProcessEmitting中，每一个时间点，每个token只能沿着输入非epsilon的arc扩展一步，而对于ProcessNonemitting，如果某个state后面有连续多个epsilon的arc，是需要向后连续扩展token的，因此在代码实现上用了一个队列来进行**深度优先搜索**。
 
-剪枝和ProcessEmitting有些区别，方法为算出t-1时刻（ProcessEmitting中是t时刻)的token中的最小cost，在扩展时t时刻token时，只有保留cost和该最小cost差值小于某个阈值(beam)的新token。
+ProcessNonemitting中的剪枝和ProcessEmitting有些区别，方法为算出t-1时刻（ProcessEmitting中是t时刻)的token中的最小cost，在扩展时t时刻token时，只有保留cost和该最小cost差值小于某个阈值(beam)的新token。
 
 **PruneToks**
 
@@ -109,7 +109,7 @@ SimpleDecoder里实现的token-pass算法是viterbi算法的一种实现方法�
 
 **GetBestPath**
 
-当到达T时刻，只要找出各个cur_toks_里cost最小的state(如果要求final，则必须使用final状态中的token)，然后根据其backtrace指针不断往前回溯找到所有的token，把这些token记录的arc上的output输出即可。GetBestPath里实际是用token里的arc信息构建了一个Lattice，不过这个Lattice其是一条直线。每个状态都只有一个边。由于有输入是epsilon的边，所以这条路径的边个数可能大于语音的帧数。
+当到达T时刻，只要找出cur_toks_里cost最小的state(如果要求final，则必须使用final状态中的token)，然后根据其backtrace指针不断往前回溯找到所有的token，把这些token记录的arc上的output输出即可。GetBestPath里实际是用token里的arc信息构建了一个Lattice，不过这个Lattice其实是一条直线。每个状态都只有一个边。由于有输入是epsilon的边，所以这条路径的边个数可能大于语音的帧数。
 
 以上就是全部算法。谢谢阅读。
 

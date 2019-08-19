@@ -30,9 +30,10 @@ B目录里link A目录中的所有文件
 cd B
 ln -fs A/* ./ 
 ```
-copy
-cp -rL /ex
-
+copy源目录src中的link的原始文件，
+```
+cp -rL src/ dst/
+```
 # bash
 获得不带路径和后缀的文件名
 ```
