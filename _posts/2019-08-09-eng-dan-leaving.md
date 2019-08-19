@@ -14,6 +14,7 @@ I am leaving to take a private-sector job in Seattle, starting August 19th. I wi
 从8月19号开始，我就要离开JHU去一西雅图的一家公司工作了。之后我会用远程方法指导我的学生以及和合作者协作。这封信里，我被JHU开除了，必须在8月31之前离开。因为在被开除前我已经有了准备，所以可以更早些离开。请不要责怪Whiting学院或者Andrew Douglas，这是更高层的决定。在通知信里你可以看到，我几乎不被允许和JHU的任何人交流，不过从技术角度讲，我可以把我想说的放在网上，如果你不小心看到了，那就和我无关啦。
 
 I don't expect all this will come as a surprise to most of you, given that three months ago organized a counter-protest against the student occupation of Garland hall, and a number of people were extremely triggered about that; but I thought you might like a little background.
+
 我想对于你们不少人而言，听到这个消息时应该有心里准备，毕竟，很多人对于三个月前我组织的“反占X”（反对示威学生占领Garland行政中心)活动一直都很关心，不过我估计你们可能会想了解更多的相关背景信息。
 
 What was never in dispute is that, being frustrated as the prospect of a long siege at Garland where our computer servers live, I organized a group of what I called "counter-protesters" to try to regain control of the building from the students. This was on the evening of May 8th; there was a scuffle and I was carried out of the building by the protesters. They then made allegations to the Office of Institutional Equity (OIE), saying that I had attacked them. The OIE seems not to have been able to substantiate the allegations that I attacked the protesters, but university leadership still decided that I still needed to be fired. (The attached letter claims that they are still investigating... I think most likely the true story is either they found the protesters were lying or realize that they'll never know what happened).
@@ -41,13 +42,17 @@ Now if I had known in advance that everyone inside the building was black (that 
 I'm aware that it's a huge violation of social norms for me to say publicly that I think whites, or males, are being discriminated against. As far as I can tell there are three specific circumstances in which it's acceptable for a white male in left-of-center America to allude publicy to these types of double standards:
 
 To justify them
+
 To advocate for their adoption
+
 To deny that they exist at all
 
 我明白，公开说出我的想法，即认为白人或说白人男性受到歧视，这极大违反了美国的社会规范。据我所知，只有三种情况下可以稍微提及白人男性被双标对待这件事，而不会惹怒美国偏左翼的白人男性。这三个情况是：
 
 为这些人辩护
+
 倡导他们的采纳
+
 否认他们存在
 
 Clearly what I am doing here doesn't fall into any of those three categories. But the truth is, I left the bounds of left-wing respectability quite some time ago.
@@ -73,19 +78,20 @@ You might counter that my analogy is inappropriate because women of color actual
 
 I want to be clear: I'm not in favor of any political or cultural movements that are animated by resentment. The choice isn't, and shouldn't be, between demonizing one demographic group or demonizing the other. But to join a movement that's specifically against one's own group? That's retarded. Man up, America! You're better than that. Leave that garbage to the man-haters and racial agitators that generated it, stop apologizing, and start living your lives!
 
-我想明确一点：我不赞成任何因怨恨而生气勃勃的政治或文化运动。选择不是，也不应该是妖魔化一个人口群体或妖魔化另一个群体。但加入一场专门反对自己团体的运动？那是迟钝的。男人，美国！你比那更好。把那些垃圾留给生成它的憎恨者和种族煽动者，停止道歉，开始过你的生活！
-
-我想声明一点：我不赞成任何因为怨恨而看起来充满生气的政治或文化运动。我们能做的选择不是，也不应该是非得妖魔化一个群体或另一个群体。但是去加入一场反对自己所在群体的运动是在太愚蠢了。站起来吧男人，美国男人！你们远不该如此卑贱，请把那些愤世嫉俗者和种族主义鼓动者生产的垃圾还给他们，不必再向谁道歉，好好活自己的人生。
+我想声明一点：我不赞成任何因为怨恨而看起来充满生气的政治或文化运动。我们能做的选择不是，也不应该是非得妖魔化一个群体或另一个群体。但是去加入一场反对自己所在群体的运动是在太愚蠢了。站起来吧男人，美国男人！你们远不该如此卑贱，请把那些愤世嫉俗者和种族主义鼓动者生产的垃圾还给他们，不必再向谁道歉，开始自己的人生！
 
 Anywho: as for me, I may not have my job, but at least I still have my dignity and my independence of thought. I'll leave you with some words of Bob Dylan:
 
 至于我，虽然可能没有了工作，但至少我还有着尊严和独立思想，这里送给大家一段Bob Dylan的话:
 
 I ain't sorry for nothing I've done 
+
 I'm glad I fought, I only wish we'd won
 
 对做过之事 我从未后悔
+
 我为之奋斗 一直骄傲如此
+
 我只是希望 假如我们赢了
 
 Please send my regards to the OIE, and say that, thanks to them, my career prospects have greatly improved.
