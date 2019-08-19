@@ -11,7 +11,7 @@ Leaving Hopkins
 Everyone,
 I am leaving to take a private-sector job in Seattle, starting August 19th. I will still be working with my students and collaborators here remotely. As you'll see from this letter, I have been fired from Hopkins effective the 31st of August. I had arranged a backup plan beforehand, so will be leaving a bit earlier. Please don't blame the Whiting School or Andrew Douglas for this; this comes from higher up. You'll see from the letter that I am not supposed to communicate with (almost) anyone at Hopkins... technically I am just putting this on the web; and if you find it, you find it.
 
-从8月19号开始，我就要离开JHU去一西雅图的一家公司工作了。之后我会用远程方法指导我的学生以及和合作者协作。这封信里，我被JHU开除了，必须在8月31之前离开。因为在被开除前我已经有了准备，所以可以更早些离开。请不要责怪Whiting学院或者Andrew Douglas，这是更高层的决定。在通知信里你可以看到，我几乎不被允许和JHU的任何人交流，不过从技术角度讲，我可以把我想说的放在网上，如果你不小心看到了，那就和我无关啦。
+从8月19号开始，我就要离开JHU去西雅图的一家公司工作了。之后我会用远程的方式指导我的学生以及和合作者协作。在这封信里可以看到，我被JHU开除了，且必须在8月31之前离开。因为在被开除前已经有了准备，所以我可以更早些离开。请不要责怪Whiting学院或者Andrew Douglas，这是更高层的决定。在通知信里你可以看到，我几乎不被允许和JHU的任何人交流，不过从技术角度讲，我可以把我想说的放在网上，如果你不小心看到了，那就和我无关啦。
 
 I don't expect all this will come as a surprise to most of you, given that three months ago organized a counter-protest against the student occupation of Garland hall, and a number of people were extremely triggered about that; but I thought you might like a little background.
 
