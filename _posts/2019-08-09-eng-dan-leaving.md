@@ -96,7 +96,7 @@ I'm glad I fought, I only wish we'd won
 
 Please send my regards to the OIE, and say that, thanks to them, my career prospects have greatly improved.
 
-请向我替OIE表示祝福，感谢他们，让我从此前程似锦。
+请替我向OIE表示祝福，感谢他们，让我从此前程似锦。
 
 Sayonara!
 
