@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "理解kaldi中的特征提取(二）- 特征变换"
+title:  "Kaldi中的特征提取(二）- 特征变换"
 date:   2019-08-05 11:12:59 +0800
 categories: kaldi
 ---

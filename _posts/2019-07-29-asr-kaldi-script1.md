@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "理解kaldi中的训练过程(一）- 单音素HMM-GMM模型"
+title:  "Kaldi中的训练过程(一）- 单音素HMM-GMM模型"
 date:   2019-07-29 11:11:59 +0800
 categories: kaldi
 ---
@@ -17,7 +17,7 @@ ln -fs $KALDI_ROOT/egs/wsj/s5/utils/
 ln -fs $KALDI_ROOT/egs/wsj/s5/steps/
 {% endhighlight %}
 
-./path.sh中配置了Kaldi的根目录以及相关的工具陌路
+./path.sh中配置了Kaldi的根目录以及相关的工具目录
 {% highlight bash %}
 # Defining Kaldi root directory
 # Setting paths to useful tools
@@ -34,7 +34,7 @@ cmd.sh 里配置脚本的执行方式，run.pl使用单机模式，queue.pl使�
 export train_cmd=run.pl
 export decode_cmd=run.pl
 {% endhighlight %}
-参考资料
+
 
 # 准备词典
 

@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Dan Povey离开JHU的一封公开信"
+title:  "[翻译]Dan Povey离开JHU的一封公开信"
 date:   2019-08-09 10:00:00 +0800
 categories: asr
 ---
@@ -32,7 +32,7 @@ So essentially I am being fired for what might have happened, while the students
 
 Where could this double standard come from? Well, obviously there's the fact that they were protesting for a left-wing cause, and I was opposing them. I'm not convinced that that's enough to explain it, though. My feeling is that this mostly has to do with underrepresented minorities, specificially black people (and trans people). There seems to be nothing that Americans, or American institutions, fear more than being accused of racism (or similar ism's), which leads to ridiculous spectacles like what we're seeing here, where such a huge organization can be paralyzed by a handful of deluded kids.
 
-这种双重标准的根源在哪？当然，这些人的示威抗议是因为一些左翼原因，而是我反对左翼的，但是我觉得这不是根本原因。 我认为主要原因跟少数族裔有关，尤其是涉及到了黑人和跨性别者。对于美国人或者美国的机构而言，没有什么比被指控为种族主义更可怕的事情了，所以这就导致了我们看到的荒谬情况：一个巨大的组织被一小撮被蛊惑的孩子搞得瘫痪了。
+这种双重标准的根源在哪？当然，这些人的示威抗议是因为一些左翼原因，而我是反对左翼的，但是我觉得这不是根本原因。 我认为主要原因跟少数族裔有关，尤其是涉及到了黑人和跨性别者。对于美国人或者美国的机构而言，没有什么比被指控为种族主义更可怕的事情了，所以这就导致了我们看到的荒谬情况：一个巨大的组织被一小撮被蛊惑的孩子搞得瘫痪了。
 
 
 Now if I had known in advance that everyone inside the building was black (that was what I saw; although from media coverage it seems that there may have been a white trans person in the core group)-- I wouldn't have gone ahead with the counterprotest. I'm not an idiot; I know that as a person who demographically ticks all the 'oppressor boxes', I would have to be severely punished for opposing such a group. I miscalculated by trusting the coverage in JHNewsletter, which seems to have given a false impression of the demographics of the protest; their photos showed mostly white people. Now many of the people sitting outside the building were white, but that seems to have been window-dressing; they were just bystanders and didn't do anything except take a bunch of cellphone video. All the people that I saw fighting and screaming were black. If it were simply a matter of difference of opinion I expected that Hopkins would at least pretend to be even-handed; but once race and transgender status enter the picture I don't think that's possible any more.

@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "理解kaldi中的训练过程(一）- 三音素HMM-GMM模型"
+title:  "Kaldi中的训练过程(一）- 三音素HMM-GMM模型"
 date:   2019-07-29 11:11:59 +0800
 categories: kaldi
 ---
