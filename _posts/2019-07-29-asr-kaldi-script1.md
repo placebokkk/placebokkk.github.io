@@ -301,6 +301,7 @@ utils/mkgraph.sh data/lang_test exp/mono exp/mono/graph || exit 1;
 HCLG.fst    输入hmm-state（kaldi里输入是transition-id）输出words的G
 disambig_tid.int
 num_pdfs pdf的个数125个，和occs里个数一致
+
 ```
 ```
 tree-info exp/mono/tree
