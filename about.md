@@ -5,9 +5,10 @@ permalink: /about/
 ---
 I am a father/sport-lover/programmer living in Suzhou,China.
 
-I used to work in Microsoft, AISpeech and a start-up. Now I work as an engineer in Mobvoi, focusing on machine learning, speech and NLP.
+I used to work in Microsoft, AISpeech and a start-up. Now I work as an engineer in Mobvoi, focusing on machine learning and ASR technique. 
+I also teach children basketball and coach an adult basketball team in spare time.
 
-Most of my life is about my little son and basketball. I also coach a basketball team in spare time.
+
 
 [github][my-github] /
 [zhihu][my-zhihu] /
