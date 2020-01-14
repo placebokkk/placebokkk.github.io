@@ -18,7 +18,7 @@ email: chaoyang@mobvoi.com
 description: >- # this means to ignore newlines until "baseurl:"
    Notes on speech and programmin
 baseurl: "" # the subpath of your site, e.g. /blog
-url: "" # the base hostname & protocol for your site, e.g. http://example.com
+url: "http://placebokkk.github.io/" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  placebokkk
 baidu-analysis: 11866e4ac10c66a3b32a936dcf2b7674
 # Build settings
