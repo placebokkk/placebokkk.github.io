@@ -44,3 +44,10 @@ header_pages:
 #   - vendor/cache/
 #   - vendor/gems/
 #   - vendor/ruby/
+# exlclude pdf in sitemap
+defaults:
+  -
+    scope:
+      path: "assets/"
+    values:
+      sitemap: false
