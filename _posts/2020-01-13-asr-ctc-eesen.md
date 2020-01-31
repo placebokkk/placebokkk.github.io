@@ -399,7 +399,7 @@ static void _compute_ctc_alpha_one_sequence(Real* mat_alpha, int row, MatrixDim 
 
 Cuda里计算t时刻CTC Alpha的划分如下图,代码中的i对应图中纵坐标（从上往下），row(即t)对应横坐标。每个block对应图中的一个框，其中有256个thread。每个thread计算一个圆圈上的统计量。
 
-![alpha_chart_cud](/assets/images/CTC/alpha_chart_cuda.png)
+![alpha_chart_cuda](/assets/images/CTC/alpha_chart_cuda.png)
 
 结合图看代码：
 * index_alpha_*记录前向统计量矩阵中的index，比如index_alpha_rm1_im1表示,r是row的意思，也就是时间帧t，其中m是minus的意思，即(t-1,i-1)对应的alpha矩阵中的index

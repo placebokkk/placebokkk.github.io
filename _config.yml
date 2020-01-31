@@ -48,6 +48,6 @@ header_pages:
 defaults:
   -
     scope:
-      path: "assets/"
+      path: "assets/**/*.pdf"
     values:
       sitemap: false
