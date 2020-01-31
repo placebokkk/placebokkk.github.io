@@ -4,7 +4,25 @@ title:  "Eesen中的CTC实现"
 date:   2020-01-13 10:00:00 +0800
 categories: asr
 ---
-## Eesen中CTC的实现
+
+{: class="table-of-content"}
+* TOC
+{:toc}
+
+## Eesen的CTC框架
+1. 准备输入feature:利用kaldi的工具提取
+1. 准备输出label数据
+  * phone text根据字典变为phone序列
+  * charactor/grapheme 单词拆分成，增加space
+1. 利用kaldi nnet1框架，实现CTC损失函数，直接训练神经网络的声学模型
+1. extract_net_output得到feature通过网络的输出
+1. 构建 TLG解码图，T可以是phone或者char
+1. 利用lattice decoder解码输出，kaldi中HCLG fst的input是transition-id，eesen中是token-id.
+
+
+其中第3步和第4步也可以使用其他框架实现， 我实现了一个[pytorch版本](https://github.com/placebokkk/ctc-asr)，可以复现eesen中的wsj数据集上的结果。
+
+## Eesen中CTC的训练
 
 Eesen中CTC的实现和原始论文的推导很接近，没做什么优化，很适合用来学习理解CTC。
 但是Eesen的CTC实现在梯度的计算上，没有直接使用论文中最后得到softmax前的a值的导数公式，而是先求出softmax后的y值的导数，再求出a值的导数，因此和原论文的公式并不相同。
@@ -13,7 +31,7 @@ Eesen中CTC的实现和原始论文的推导很接近，没做什么优化，很
 `src/net/ctc-loss.cc`文件中Ctc::Eval和Ctc::EvalParallel都是计算CTC损失对softmax前的a值的导数，区别是前者计算单个样本，后者计算一组(Batch)样本。
 下面仅对Ctc::Eval进行说明
 
-## CTC的前向后向计算
+### CTC的前向后向计算
 
 在首尾和字符间插入blank，(`l`变为`l'`),如**abbc**变为**-a-b-b-c-**，长度`n`变为`L=2n+1`
 {% highlight java %}
@@ -59,20 +77,7 @@ ComputeCtcAlpha和ComputeCtcBeta分别计算前向和后向值，算法类似，
 template<typename Real>
 __global__
 static void _compute_ctc_alpha_one_sequence(Real* mat_alpha, int row, MatrixDim dim_alpha, const Real* mat_prob, MatrixDim dim_prob, const int32_cuda* labels) {
-
-  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
-  int32_cuda dim = dim_alpha.cols;
-
-  if (i < dim) {
-
-  int32_cuda index_alpha = i + row * dim_alpha.stride;
-  int32_cuda class_idx = labels[i];
-  int32_cuda index_prob = class_idx + row * dim_prob.stride;
-
-  int32_cuda index_alpha_rm1_i = i + (row - 1) * dim_alpha.stride;
-  int32_cuda index_alpha_rm1_im1 = (i - 1) + (row - 1) * dim_alpha.stride;
-  int32_cuda index_alpha_rm1_im2 = (i - 2) + (row - 1) * dim_alpha.stride;
-
+  ...
   if (row == 0) {
     if (i < 2) mat_alpha[index_alpha] = mat_prob[index_prob];
     else mat_alpha[index_alpha] = NumericLimits<Real>::log_zero_;
@@ -90,11 +95,9 @@ static void _compute_ctc_alpha_one_sequence(Real* mat_alpha, int row, MatrixDim 
       mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], mat_alpha[index_alpha_rm1_i]);
     }
   }
- }
 }
 {% endhighlight%}
 参考论文公式
-
 
 $$
 \alpha_{t}(s)=\left\{\begin{array}{ll}
@@ -109,7 +112,8 @@ $$
 \bar{\alpha}_{t}(s) \stackrel{\text { def }}{=} \alpha_{t-1}(s)+\alpha_{t-1}(s-1)
 $$
 
-很容易理解上述代码。
+很容易理解上述代码逻辑。
+这里涉及CTC里针对CTC前向计算的cuda kernel的设计，但是和CTC的算法本身无关，这里先跳过，本文后面章节会介绍[cuda相关的知识](#关于cuda计算的介绍)
 
 ### 计算条件似然函数
 
@@ -134,7 +138,7 @@ $$
 所以`pzx = tmp1 + log(1 + ExpA(tmp2 - tmp1))`  等价于`log(exp(tmp1)+exp(tmp2))`.
 
 
-## CTC的反向传播导数
+### CTC的反向传播导数
 
 t时刻的输出softmax函数为
 
@@ -150,7 +154,7 @@ $$
 
 但是eesen中没有使用该公式，而是先计算y值（softmax之后）的导数，再计算a值（softmax之前）的导数.
 
-### softmax后y值的导数
+#### softmax后y值的导数
 
 梯度法求的是极小值，因此最大化似然等价于最小化似然的负数，从而目标是求`-p(l|x)`对a的导数。整体代码如下：
 {% highlight java %}
@@ -225,7 +229,7 @@ static void _compute_ctc_error_one_sequence(Real* mat_error, MatrixDim dim_error
 }
 {% endhighlight%}
 
-### softmax前a值的导数
+#### softmax前a值的导数
 
 接着计算softmax之前a值的导数。我们先推导出计算公式：
 
@@ -282,3 +286,135 @@ diff是一个T*K的矩阵，其第t行k列的值为，即
 $$
 E_{k}^{t} y_{k}^{t}  - (\sum_{k^{\prime}}^{K} {E_{k^{\prime}}^{t} y_{k^{\prime}}^{t} ) y_{k}^{t} }
 $$
+
+
+### 关于Cuda计算的介绍
+
+Cuda的计算架构里有Grid/Block/Thread概念。
+* 一个Grid里有多个Block。
+* 一个Block里有多个Thread。
+* 每个Cuda Kernel在一个Thread上计算。Thread之间是并行的。
+* Grid和Block的布局可以是1，2，3维的。
+
+设计一个算法的cuda版本，需要考虑如何把算法分配到Thread上并行计算。
+
+Eesen里的CTC里的Alpha
+{% highlight java %}
+//eesen/src/net/ctc-loss.cc
+void Ctc::Eval(...）{
+  ...
+  alpha_.Resize(num_frames, exp_len_labels, kSetZero);
+  for (int t = 0; t < num_frames; t++) {
+    alpha_.ComputeCtcAlpha(log_nnet_out, t, label_expand_, false);
+  }
+  ...
+}
+{% endhighlight%}
+其中
+* exp_len_labels是在标注序列的首尾及各字符之间插入blank扩展后的序列。原序列长度`n`，则新序列长度为`L=2n+1`
+* alpha_是一个num_frames行，exp_len_labels列的矩阵。每一行对应一个时间帧t。
+
+ComputeCtcAlpha里的cuda
+{% highlight java %}
+//eesen/src/gpucompute/cuda-matrix.cc
+template<typename Real>
+void CuMatrixBase<Real>::ComputeCtcAlpha(const CuMatrixBase<Real> &prob,
+                                         int32 row_idx,
+                                         const std::vector<MatrixIndexT> &labels,
+                                         bool rescale) {
+    MatrixIndexT prob_cols = prob.NumCols();
+    CuArray<MatrixIndexT> cuda_labels(labels);
+    int dimBlock(CU1DBLOCK);
+    int dimGrid(n_blocks(num_cols_,CU1DBLOCK));
+    cuda_compute_ctc_alpha(dimGrid, dimBlock, data_, row_idx, Dim(), prob.data_, prob.Dim(), cuda_labels.Data());
+}
+inline void cuda_compute_ctc_alpha(dim3 Gr, dim3 Bl, float *alpha, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels) {
+  cudaF_compute_ctc_alpha(Gr, Bl, alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+void cudaF_compute_ctc_alpha(dim3 Gr, dim3 Bl, float *alpha, int row_idx, MatrixDim dim_alpha, const float *prob, MatrixDim dim_prob, const int *labels) {
+  _compute_ctc_alpha_one_sequence<<<Gr, Bl>>>(alpha, row_idx, dim_alpha, prob, dim_prob, labels);
+}
+{% endhighlight%}
+
+其中CU1DBLOCK定义为256
+
+{% highlight java %}
+eesen/src/gpucompute/cuda-matrixdim.h
+// The size of a CUDA 1-d block, e.g. for vector operations..
+#define CU1DBLOCK 256
+{% endhighlight%}
+
+n_blocks用于确定一个Grid里Block的个数
+
+{% highlight java %}
+//eesen/src/gpucompute/cuda-common.h
+inline int32 n_blocks(int32 size, int32 block_size) { 
+  return size / block_size + ((size % block_size == 0)? 0 : 1); 
+}
+{% endhighlight%}
+
+假设exp_len_labels的长度为L，则n_blocks=L/256.
+所以cuda_compute_ctc_alpha的一个Grid里有`L/256`个Block, 一个Block里有256个Thread
+
+
+
+现在再看最终调用的_compute_ctc_alpha_one_sequence<<<Gr, Bl>>>()的完整代码。
+{% highlight java %}
+template<typename Real>
+__global__
+static void _compute_ctc_alpha_one_sequence(Real* mat_alpha, int row, MatrixDim dim_alpha, const Real* mat_prob, MatrixDim dim_prob, const int32_cuda* labels) {
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+  int32_cuda dim = dim_alpha.cols;
+
+  if (i < dim) {
+
+  int32_cuda index_alpha = i + row * dim_alpha.stride;
+  int32_cuda class_idx = labels[i];
+  int32_cuda index_prob = class_idx + row * dim_prob.stride;
+
+  int32_cuda index_alpha_rm1_i = i + (row - 1) * dim_alpha.stride;
+  int32_cuda index_alpha_rm1_im1 = (i - 1) + (row - 1) * dim_alpha.stride;
+  int32_cuda index_alpha_rm1_im2 = (i - 2) + (row - 1) * dim_alpha.stride;
+
+  if (row == 0) {
+    if (i < 2) mat_alpha[index_alpha] = mat_prob[index_prob];
+    else mat_alpha[index_alpha] = NumericLimits<Real>::log_zero_;
+  } else {
+    if (i > 1) {
+      if (i % 2 == 0 || labels[i-2] == labels[i]) {
+        mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], LogAPlusB(mat_alpha[index_alpha_rm1_im1], mat_alpha[index_alpha_rm1_i]));
+      } else {
+        Real tmp = LogAPlusB(mat_alpha[index_alpha_rm1_im1], mat_alpha[index_alpha_rm1_i]);
+        mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], LogAPlusB(mat_alpha[index_alpha_rm1_im2], tmp));
+      }
+    } else if (i == 1) {
+      mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], LogAPlusB(mat_alpha[index_alpha_rm1_im1], mat_alpha[index_alpha_rm1_i]));
+    } else {
+      mat_alpha[index_alpha] = AddAB(mat_prob[index_prob], mat_alpha[index_alpha_rm1_i]);
+    }
+  }
+ }
+}
+{% endhighlight%}
+
+Cuda里计算t时刻CTC Alpha的划分如下图,代码中的i对应图中纵坐标（从上往下），row(即t)对应横坐标。每个block对应图中的一个框，其中有256个thread。每个thread计算一个圆圈上的统计量。
+
+![alpha_chart_cud](/assets/images/CTC/alpha_chart_cud.png)
+
+结合图看代码：
+* index_alpha_*记录前向统计量矩阵中的index，比如index_alpha_rm1_im1表示,r是row的意思，也就是时间帧t，其中m是minus的意思，即(t-1,i-1)对应的alpha矩阵中的index
+* index_prob记录当前thread(t时刻，expand-label第i个位置)的label在网络输出的prob矩阵中的index
+* `if (i < dim)` : 这里dim即label的长度L，因为L不一定是Blocksize(256)的整数倍，所以最后一个block里的i可能会大于L，因此`if (i < dim)`是必要的。
+
+另外，因为CTC本身的性质，t时刻只能计算到t*2位置的label的alpha值，所以这里`if (i < dim)`可以改为 `if (i < 2*row + 1 && i < dim)`,减小一些的计算量。不过因为一般T都远大于L，所以减少的计算量也不多。
+
+
+## Eesen中的CTC的解码[待更新]
+
+### 解码图构建
+
+#### T的构建
+
+#### L的构建
+
+### 解码优化
