@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "CTC的Decode算法-Prefix Beam Search"
+title:  "CTC的Decode算法-"
 date:   2020-02-01 10:00:00 +0800
 categories: asr
 ---
@@ -9,13 +9,14 @@ categories: asr
 * TOC
 {:toc}
 
-CTC几种常见的解码方式
+## CTC几种常见的解码方式
 
 1. greedy decode，每帧输出最大值，然后规整。
-2. nbest decode，输出的结果规整并合并相同序列，可额外在应用语言模型。
-3. prefix beam search, 直接在规整字符串上解码，可额外在应用语言模型。
+2. 在ctc字符串上做beam search，输出的n个结果规整，并合并相同序列，然后再应用语言模型。(secondpass LM)
+3. 在规整字符串上做beam search, 可额外在应用语言模型。该算法也叫Prefix Beam Search，可以在解码过程中直接应用LM。(firstpass LM)
 4. 使用fst静态解码。可引入语言模型和字典模型。
 
+## prefix beam search的笔记
 本文为prefix beam search的笔记。
 
 Grave最早提出的prefix search不好理解，现在也没有人用。可直接参考Awni Hannun提出的prefix beam search。
@@ -81,6 +82,29 @@ $$
 * 注意图中的箭头，t时刻的$$*ab$$如果处在t时刻的beam中，
 也会用于更新t+1时刻$$*ab$$的值。但是这个更新是发生在对t时刻的$$*ab$$计算时。
 
+### 说明
+ctc字符串上的beam search和规整字符串上的beam search的区别。
+ctc_prefix， 网络输出组成的序列，包含blank和repeat
+norm prefix, 对ctc_prefix去除blank和repeat后的序列
+你的问题1:
+
+你说的网上”实现的版本“，是在norm prefix层面上做beam search，而你的版本，是在ctc_prefix层面上做beam search.
+
+两者的区别：
+
+1.beam search会丢掉些路径，在一般的decode任务里，结果是可能返回不是best的路径，而在ctc的decode任务里，则是会使得最终的规整字符串丢掉一些可能的ctc aligment路径的概率。
+同样的beam size下ctc字符串上的beam search，其丢掉的路径比在规整字符串上做beam search的更多，所以最终的结果就更差一些。
+
+参考Awni在Distill上的非常棒的文章中的图片
+
+直接做beam search，可以看到beam size=3时，每个时刻只有三个路径v
+![ctc_beamsearch](/assets/images/CTC/ctc_beamsearch.jpg)
+
+在规整字符串上做beam search，可以看到beam size=3时，每个时刻可以保留更多路径
+![prefix_beamsearch](/assets/images/CTC/prefix_beamsearch.jpg)
+
+2.在规整字符串上做beam search允许在fisrt pass引入LM得分，因为解码过程中就知道规整后的形式和space的位置，在ctc字符串上做beam search则不行。
+
 
 Hannun论文《First-Pass Large Vocabulary Continuous Speech Recognition using Bi-Directional Recurrent DNNs 》中给出的算法。
 ![prefix_beam_algo](/assets/images/CTC/prefix_beam_algo.png)
@@ -90,6 +114,7 @@ Hannun论文《First-Pass Large Vocabulary Continuous Speech Recognition using B
 
 
 Hannun给出的一个python实现。
+
 
 {% highlight python %}
 """
