@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "CTC的Decode算法-"
+title:  "CTC的Decode算法-Prefix Beam Search"
 date:   2020-02-01 10:00:00 +0800
 categories: asr
 ---
@@ -13,7 +13,7 @@ categories: asr
 
 1. greedy decode，每帧输出最大值，然后规整。
 2. 在ctc字符串上做beam search，输出的n个结果规整，并合并相同序列，然后再应用语言模型。(secondpass LM)
-3. 在规整字符串上做beam search, 可额外在应用语言模型。该算法也叫Prefix Beam Search，可以在解码过程中直接应用LM。(firstpass LM)
+3. 在规整字符串上做beam search, 可额外在应用语言模型。该算法叫Prefix Beam Search，可以在解码过程中直接应用LM。(firstpass LM)
 4. 使用fst静态解码。可引入语言模型和字典模型。
 
 ## prefix beam search的笔记
