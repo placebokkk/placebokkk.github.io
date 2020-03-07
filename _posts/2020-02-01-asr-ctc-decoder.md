@@ -83,19 +83,12 @@ $$
 也会用于更新t+1时刻$$*ab$$的值。但是这个更新是发生在对t时刻的$$*ab$$计算时。
 
 ### 说明
-ctc字符串上的beam search和规整字符串上的beam search的区别。
-ctc_prefix， 网络输出组成的序列，包含blank和repeat
-norm prefix, 对ctc_prefix去除blank和repeat后的序列
-你的问题1:
+ctc字符串上的beam search和规整字符串上的beam search的区别:
 
-你说的网上”实现的版本“，是在norm prefix层面上做beam search，而你的版本，是在ctc_prefix层面上做beam search.
-
-两者的区别：
-
-1.beam search会丢掉些路径，在一般的decode任务里，结果是可能返回不是best的路径，而在ctc的decode任务里，则是会使得最终的规整字符串丢掉一些可能的ctc aligment路径的概率。
+1. beam search会丢掉些路径，在一般的decode任务里，结果是可能返回不是best的路径，而在ctc的decode任务里，则是会使得最终的规整字符串丢掉一些可能的ctc aligment路径的概率。
 同样的beam size下ctc字符串上的beam search，其丢掉的路径比在规整字符串上做beam search的更多，所以最终的结果就更差一些。
 
-参考Awni在Distill上的非常棒的文章中的图片
+参考Awni在Distill上的文章中的图片
 
 直接做beam search，可以看到beam size=3时，每个时刻只有三个路径v
 ![ctc_beamsearch](/assets/images/CTC/ctc_beamsearch.jpg)
@@ -103,7 +96,7 @@ norm prefix, 对ctc_prefix去除blank和repeat后的序列
 在规整字符串上做beam search，可以看到beam size=3时，每个时刻可以保留更多路径
 ![prefix_beamsearch](/assets/images/CTC/prefix_beamsearch.jpg)
 
-2.在规整字符串上做beam search允许在fisrt pass引入LM得分，因为解码过程中就知道规整后的形式和space的位置，在ctc字符串上做beam search则不行。
+2. 在规整字符串上做beam search允许在fisrt pass引入LM得分，因为解码过程中就知道规整后的形式和space的位置，在ctc字符串上做beam search则不行。
 
 
 Hannun论文《First-Pass Large Vocabulary Continuous Speech Recognition using Bi-Directional Recurrent DNNs 》中给出的算法。

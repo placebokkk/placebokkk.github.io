@@ -6,7 +6,7 @@ categories: kaldi
 ---
 # 特征提取
 
-我们从mfcc特征入手了解kaldi的特征提取的设计实现。
+从mfcc特征入手了解kaldi的特征提取的设计实现。
 
 make_mfcc_pitch.sh文件里提取mfcc和pitch特征的部分
 
@@ -87,9 +87,9 @@ void OfflineFeatureTpl<F>::Compute(
 * ExtractWindow()位于kaldi/src/feat/feature-window.cc，完成分帧，加窗，去直流，dither，预加重等工作
 * 而MfccComputer的Compute()中进行Mfcc相关的特征提取操作，位于 kaldi/src/feat/feature-mfcc.cc
 
-类似的，在feat/下的feature-*文件中有对应的特征提取算法，如plp，fbank，mfcc。
+类似的，在feat/下的feature-*文件中有对应的特征提取算法，*={plp，fbank，mfcc}。
 
-注意pitch特征没有对用的feature-pitch.ccw文件，其计算函数ComputeKaldiPitch位于pitch-functions.cc中，因为Pitch的计算和mfcc,fbank等不同，它不是一个频域分析得到的特征，而是从波形上直接进行提取。
+注意pitch特征没有对应的feature-pitch.cc文件，其计算函数ComputeKaldiPitch位于pitch-functions.cc中，因为Pitch的计算和mfcc,fbank等不同，它不是一个频域分析得到的特征，而是从波形上直接进行提取。
 
 ### 
 [kaldi-lattice-url]: http://kaldi-asr.org/doc/lattices.html
