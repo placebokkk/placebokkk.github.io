@@ -1,0 +1,61 @@
+digraph G {
+rankdir="BT";
+    input_m2 [shape=box,label="input:t-2"];
+    input [shape=box,label="input:t"];
+    input_2 [shape=box,label="input:t+2"];
+
+    tdnn_affine [shape=box,label="tdnn.affine:t"];
+    tdnn_relu [shape=box,label="tdnn.relu:t"];
+    tdnn_batchnorm [shape=box,label="tdnn.batchnorm:t"];
+
+
+    lstm_W_all [shape=box,label="lstm.W_all:t"];
+    lstm_lstm_nonlin [shape=box,label="lstm.lstm_nonlin:t"];
+    lstm_m [shape=box,label="lstm.m:t"];
+    lstm_cm_trunc [shape=box,label="lstm.cm_trunc:t"];
+    lstm_lstm_nonlin_m3 [shape=box,label="lstm.lstm_nonlin:t-3"];
+    lstm_cm_trunc_m3 [shape=box,label="lstm.cm_trunc:t-3"];
+    lstm_c_trunc_m3 [shape=box,label="lstm.c_trunc:t-3"];
+    lstm_m_trunc_m3 [shape=box,label="lstm.m_trunc:t-3"];
+
+    lstm_W_all_m3 [shape=box,label="lstm.W_all:t-3"];
+    lstm_c_trunc_m6 [shape=box,label="lstm.c_trunc:t-6"];
+
+
+    output_affine [shape=box,label="output.affine:t"];
+    output_log_softmax [shape=box,label="output.log-softmax:t"];
+
+    subgraph cluster_tdnn {
+    label="TDNN";
+    color=pink;
+    input_m2 -> tdnn_affine;
+    input -> tdnn_affine;
+    input_2 -> tdnn_affine;
+    tdnn_affine -> tdnn_relu;
+    tdnn_relu -> tdnn_batchnorm;  
+    }
+    tdnn_batchnorm -> lstm_W_all;
+
+lstm_c_trunc_m6 -> lstm_lstm_nonlin_m3;
+subgraph cluster_lstm_m3 {
+    label="LSTM t-3";
+    lstm_W_all_m3 -> lstm_lstm_nonlin_m3;
+    lstm_lstm_nonlin_m3 -> lstm_cm_trunc_m3;
+    lstm_cm_trunc_m3 -> lstm_c_trunc_m3;
+    lstm_cm_trunc_m3 -> lstm_m_trunc_m3;
+ }
+
+    lstm_m_trunc_m3 -> lstm_W_all;
+    lstm_c_trunc_m3 -> lstm_lstm_nonlin;
+
+subgraph cluster_lstm {
+    label="LSTM t";
+    lstm_W_all -> lstm_lstm_nonlin;
+    lstm_lstm_nonlin -> lstm_cm_trunc;
+    lstm_lstm_nonlin -> lstm_m;
+    }
+
+    lstm_m -> output_affine;
+    output_affine -> output_log_softmax;
+
+}
