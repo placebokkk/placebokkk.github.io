@@ -1,8 +1,8 @@
 ---
 layout: post
 title:  "Kaldi-nnet3-基础知识"
-date:   2019-11-04 11:11:59 +0800
-categories: kaldi
+date:   2020-03-14 11:11:59 +0800
+categories: kaldi-nnet3
 ---
 {: class="table-of-content"}
 * TOC
