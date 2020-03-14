@@ -9,8 +9,7 @@ categories: kaldi-nnet3
 {:toc}
 
 
-# 目标与背景介绍
-Kaldi Nnet3文档的描述
+# Kaldi Nnet3文档的描述
 
 nnet1 和 nnet2 都是的基于Component(组件)对象设计，从而神经网络可以看作是Component的堆叠。每个Component有支持minibatch的Propagate和Backprop函数，以及其他函数。
 
@@ -21,10 +20,10 @@ nnet1和nnet2除了支持按顺序堆叠非线性变换外，通过额外的设�
 Nnet3的目标是在支持Nnet1和Nnet2已支持的topo基础上在支持更多的网络类型，同时提供基于配置文件的方式去构建网络，从而用户不需要做代码开发就可以实现新的网络结构的ideas。在Nnet3中，可以用最基本的组件直接构建LSTM。
 
 
-# Kaldi的网络结构。
+# Kaldi的Nnet3网络结构。
 
 * xconfig: 类似于keras，简洁的网络定义，xconfig覆盖了大部分常用的神经网络layer
-* config: kaldi实际使用的config， 基于node定义网络结构，如果xconfig午饭满足需求，可在config层实现。
+* config: kaldi实际使用的config， 基于node定义网络结构，如果xconfig无法满足需求，可在config层实现。
 * C++: 如果某些网络无法用config构建，或者想提高效率，则可以在C++层实现。(Kaldi本身的LSTM可以通过config实现，但是Kaldi也在C++层实现了一个更高效的LSTM)
 
 
@@ -55,7 +54,7 @@ Nnet3的目标是在支持Nnet1和Nnet2已支持的topo基础上在支持更多�
 steps/nnet3/xconfig_to_configs.py --xconfig-file tdnn-lstm.xconfig --config-dir ./
 ```
 
-tdnn-lstm.xconfig转换后的网络如下，可以看到，整个定义比较长。
+tdnn-lstm.xconfig转换后的网络如下，可以看到基于config的 定义比较长。
 ```
 input-node name=input dim=40
 component name=tdnn.affine type=NaturalGradientAffineComponent input-dim=120 output-dim=64  max-change=0.75
