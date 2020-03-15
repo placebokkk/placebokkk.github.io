@@ -16,7 +16,7 @@
 title: Chao Yang 
 email: chaoyang@mobvoi.com
 description: >- # this means to ignore newlines until "baseurl:"
-   Notes on speech and programmin
+   Notes on speech and programming
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "http://placebokkk.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  placebokkk
