@@ -20,9 +20,8 @@ I mainly plan to learn 3 parts of Kaldi.
     * Nnet3. Learn how a nerual netword engine is designed.
     * Decoder. Now I know the basic Decoder in Kaldi. Hope to understand more.
     * Ivector. This feature is magical.It helps great in some SID and ASR tasks, I want to understand this model better.
-1. Streaming E2E ASR, CTC/RNN-tt/Attetion. E2E has domainated the SOTA for all AI applications except ASR. Although it has given SOTA results on special domains or scenarios, it is hard to debug and incorparate separate LMs. Google even used RNN-t in its device ASR production. 
+1. Streaming E2E ASR, CTC/RNN-t/Attetion. E2E has domainated the SOTA for all AI applications except ASR. Although it has given SOTA results on special domains or scenarios, it is hard to debug and incorparate separate LMs. Google even used RNN-t in its device ASR production. 
 1. If having more time, I hope to learn the stuffs of deep-learning system design, such as pytorch/TVM. 
-
 
 [github][my-github] /
 [zhihu][my-zhihu] /
