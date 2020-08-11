@@ -69,11 +69,12 @@ SimpleDecoder里实现的token-pass算法是viterbi算法的一种实现方法�
 ### Token 
 
 * token可以理解为在state上
-* **prev_** 指向前一个token（从哪个token扩展来的），引用计数
+* **prev_** 指向前一个token（从哪个token扩展来的）
+* **ref_count_** 引用计数
 * **cost_** 累计cost，t时刻，token A经过边 `arc(trans-id, word-id, graph_weight)` 扩展为token B。 B的cost等于 `A的cost + (-am_score) + graph_weight`。其中am_score为t时刻特征`Ft`的声学模型上对应的`pdf-id`(`trans-id`对应的`pdf-id`)的得分。
 * **arc_** token构建时传入的是grpah上对应的StdArc类型的arc，而token内部实际存储的arc类型是LatticeArc，hclg用的StdArc类型的arc里weight只能存一个值，而LatticeArc里weight把acoustic和graph cost分开存储，因此在回溯时，可以分别输出acoustic得分和lm得分.
 * **TokenDelete()** 利用用引用计数的方式对token进行释放管理。
-* 重载了 **<** 符号，比较两个token的cost大小, 若 a.cost > b.cost, 则a < b.
+* 重载了 **<** 符号，比较两个token的得分, 若 a.cost > b.cost, 则a < b.
 
 ### SimpleDecoder类
 * prev_toks_ 保存前一帧（t-1时刻）的所有tokens
@@ -99,9 +100,9 @@ SimpleDecoder里实现的token-pass算法是viterbi算法的一种实现方法�
 
 对于输入是epsilon的边，跳转是不消耗时间的，因此需要单独处理。 在ProcessEmitting完成后，若cur_toks_中的token所在状态存在输入为eps边，则将这些token继续扩展并放入cur_toks_里。(所以自跳转上的边的输入一定不是epsilon，不然这一步无法结束。)代码中，fst里保留0作为epsilon的index，所以代码中根据arc.ilabel是否为0判断输入是否为epsilon。
 
-在ProcessEmitting中，每一个时间点，每个token只能沿着输入非epsilon的arc扩展一步，而对于ProcessNonemitting，如果某个state后面有连续多个epsilon的arc，是需要向后连续扩展token的，因此在代码实现上用了一个队列来进行**深度优先搜索**。
+在ProcessEmitting中，每一个时间点，每个token只能沿着输入非epsilon的arc扩展一步，而对于ProcessNonemitting，如果某个state后面有连续多个epsilon的arc，是需要向后连续扩展token的，因此在代码实现上用了一个先入后出的栈结构来进行**深度优先搜索**。
 
-ProcessNonemitting中的剪枝和ProcessEmitting有些区别，方法为算出t-1时刻（ProcessEmitting中是t时刻)的token中的最小cost，在扩展时t时刻token时，只有保留cost和该最小cost差值小于某个阈值(beam)的新token。
+ProcessNonemitting中的剪枝和ProcessEmitting有些区别，使用的ProcessEmitting中best token的cost + beam作为cutoff阈值。
 
 **PruneToks**
 

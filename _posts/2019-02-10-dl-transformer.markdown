@@ -10,7 +10,7 @@ categories: deep-learning
 {:toc}
 
 
-# Attention/Transformer/Transformer XL
+# Attention/Transformer/GPT/Bert
 
 ## Transformer
 
@@ -60,8 +60,43 @@ Transformer的整体结构
     * 微软的文章 https://arxiv.org/pdf/1809.08895.pdf
     * 语音合成不像nlp的任务需要关注特别长的上下文，tacotron中的conv bank本身覆盖的上下文长度（从1到16）已经足够长了。感觉使用self-attention还是conv bank都差不多。
 
-### BERT
+### GPT
 * OpenAI的Generative Pre-trained Transformer（GPT）最早Transformer来进行LM训练，该模型从左往右预测下一个词，类似于Transformer的Decoder部分，只使用了词的单侧上下文。
+* GPT结合LM的预训练和task的fine-tune，在fine-tune时，创造性地引入辅助symbol，用辅助symbol构建不同的任务输入序列，从而最大程度服用预训练的网络结构，task-specific的部分很少， 比如text entailment分类任务，sos sentence1 delim sentence2 eos  -> label.
+* 模型性能几乎随着transfomer的层数增加而线性增加。
+* 在4类任务，15个数据集上，12个超过sota.
+* 使用的都是文学类数据预训练？
+* NLP领域预训练带来巨大（提升大）和全面（任务多）提升的第一篇论文
+
+GPT2
+* 用的byte-pair encoding，怎么和word的方法比较的PPL？
+* zero-shot的实验。 
+
+
+Children’s Book Test
+cloze，10个选项。
+Following the LM approach introduced in the original paper, we compute the probability of each choice and the rest of the sentence con- ditioned on this choice according to the LM, and predict the one with the highest probability. 
+
+Reading Comprehension
+* 先给一个document和the history of the associated conversation
+* 再给“A:” 这个token
+* 用greedy decoder得到网络的输出
+
+* 先给网络一个english sentence = french sentence，告诉网络要做这任务，然后再给english sentence = ，用greedy decoder得到网络的输出
+
+Translation和Question Answering都是这种方法。
+
+Translation 不如baseline，但是里面的法语数据本身很少，只有baseline的500分之一。
+
+数据overlap。还是存在的，但是并不大。
+
+GPT3
+* Finetune 用标注数据训练
+* Few-Shot 给几个示例序列
+* One-Shot 给一个示例序列
+* Zero-shot 给一个文字描述
+
+### BERT
 * BERT希望使用self-attention且能同时利用左右的上下文，但是直接用双侧的self-attention会使得在预测下一个词的时，输入信息中直接能看到下一个词是什么，模型无法得到有效学习。为了解决这个问题引入了masked LM的训练方法。对于要预测的词，将输入序列中对应的词置为一个特殊字符'[masked]', 这样输入就看不到待预测的词的信息了。
 * BERT还增加了一个预测一个句子是不是另一个句子的下一个句子的任务来训练模型（是不是这个标注可以直接从语料免费获取，不需要额外标注）。将两个句子拼起来，用'[sep]'特殊字符分割，然后句首增加'[cls]'特殊字符，用'[cls]'的输出经过一个前向分类网络作为预测结果。
 * 网络参数配置:
