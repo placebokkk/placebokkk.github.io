@@ -32,8 +32,8 @@ prefix beam search基本思想:
 
 下图$$*$$表示一个字符串，箭头表示t+1时刻的字符串可能由哪些t时刻的字符串产生。
 比如t+1时刻的*ab来自于两种情况：
-* t时刻输出字符串*a，t+1时刻输出字符b
-* t时刻输出字符串*ab，t+1时刻输出字符b
+* t时刻输出规整字符串*a，t+1时刻输出字符b
+* t时刻输出规整字符串*ab，t+1时刻输出字符b
 
 ![prefix_beam1](/assets/images/CTC/prefix_beam1.png)
 
@@ -42,7 +42,7 @@ prefix beam search基本思想:
 
 但这里不能直接使用规整字符串的概率进行计算。
 
-我们看一个具体例子，假设第3时刻输出字符串a，第4时刻输出字符b。改字符串a的概率为-a-,-aa,aa-,aaa等不同的序列的概率和。
+我们看一个具体例子，假设第3时刻输出规整字符串a，第4时刻输出字符b。该规整字符串a的概率为-a-,-aa,aa-,aaa等不同的ctc字符串的概率和。
 
 * 如果是在aa-这个ctc字符串基础上，在t+1时刻再输出a,得到的ctc字符串为aa-a，其规整字符串为aa.
 * 如果是在aaa这个ctc字符串基础上，在t+1时刻再输出a,得到的ctc字符串为aaaa，其规整字符串为a.
@@ -61,10 +61,10 @@ $$
 $$
 
 这里只随便看其中一个，比如$$*a$$, 其t+1时刻可以产生规整字符串有四种情况。
-* 当t+1输出是blank时，产生*a
-* 当t+1输出是a时，可以产生*a
-* 当t+1输出是a时，也可产生*aa
-* 当t+1输出是b时(或其他不等于a和blank的字符)，产生*ab
+* 当t+1输出是blank时，产生规整字符串*a
+* 当t+1输出是a时，可以产生规整字符串*a
+* 当t+1输出是a时，也可产生规整字符串*aa
+* 当t+1输出是b时(或其他不等于a和blank的字符)，产生规整字符串*ab
 
 ![prefix_beam2](/assets/images/CTC/prefix_beam2.png)
 
@@ -85,8 +85,7 @@ $$
 ### 说明
 ctc字符串上的beam search和规整字符串上的beam search的区别:
 
-1. beam search会丢掉些路径，在一般的decode任务里，结果是可能返回不是best的路径，而在ctc的decode任务里，则是会使得最终的规整字符串丢掉一些可能的ctc aligment路径的概率。
-同样的beam size下ctc字符串上的beam search，其丢掉的路径比在规整字符串上做beam search的更多，所以最终的结果就更差一些。
+1. 同样的beam size下ctc字符串上的beam search，其丢掉的ctc路径比在规整字符串上做beam search的更多，所以最终的结果就更差一些。
 
 参考Awni在Distill上的文章中的图片
 
@@ -95,6 +94,8 @@ ctc字符串上的beam search和规整字符串上的beam search的区别:
 
 在规整字符串上做beam search，可以看到beam size=3时，每个时刻可以保留更多路径
 ![prefix_beamsearch](/assets/images/CTC/prefix_beamsearch.jpg)
+
+Prefix beam search仍然会丢失一些ctc序列的概率，比如上例中，字符串ba里没有包含blank blank blank blank b a这条CTC序列。
 
 2. 在规整字符串上做beam search允许在fisrt pass引入LM得分，因为解码过程中就知道规整后的形式和space的位置，在ctc字符串上做beam search则不行。
 

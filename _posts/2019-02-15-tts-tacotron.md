@@ -10,8 +10,8 @@ categories: tts
 - [x] TACOTRON: TOWARDS END-TO-END SPEECH SYNTHESIS
 - [x] Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions
 - [ ] List item Uncovering Latent Style Factors for Expressive Speech Synthesis
-- [ ] Towards End-to-End Prosody Transfer for Expressive Speech Synthesis with Tacotron
-- [ ] Style Tokens: Unsupervised Style Modeling, Control and Transfer in End-to-End Speech Synthesis
+- [x] Towards End-to-End Prosody Transfer for Expressive Speech Synthesis with Tacotron
+- [x] Style Tokens: Unsupervised Style Modeling, Control and Transfer in End-to-End Speech Synthesis
 - [ ] Transfer Learning from Speaker Verification to Multispeaker Text-To-Speech Synthesis
 - [ ] Predicting Expressive Speaking Style From Text in End-to-End Speech Synthesis
 - [ ] Semi-Supervised Training for Improving Data Efficiency in End-to-End Speech Synthesis
@@ -151,10 +151,83 @@ We further show that using this compact acoustic intermediate representation all
 ## 3.带风格Style的合成方法  
 
 
-Uncovering Latent Style Factors for Expressive Speech Synthesis
+### Uncovering Latent Style Factors for Expressive Speech Synthesis
 
-Towards End-to-End Prosody Transfer for Expressive Speech Synthesis with Tacotron
+### Towards End-to-End Prosody Transfer for Expressive Speech Synthesis with Tacotron
+
+speech = phonetics + speaker identity + channel effects + prosody
+
+*网络架构* 
+
+ref encoder + speaker encoder + transcript encoder
+
+* ref encoder 引入需要的prosody。 CNN（将采样）+RNN（取最后output）得到prosody embedding
+* speaker encoder 目标说话人（target）的信息。 one-hot输入（embeding lookup层）。
+* transcript encoder 待合成的文本信息，和tactron的encode一样r。
+* decoder和tacotron一样。
+
+ref encoder和各输出一个embedding，concat到transcript encoder产生的序列特征上。
+
+*训练特征*
+
+mel-warped spectrum， ref encoder的输入和deocder输出是一样的，相当于一个auto-encoder。
+
+*模型局限*
+
+一个fix-size的prosody embedding，concat到transcrpt encode上，只能用单一风格。
+
+*Metric*
+
+客观指标，把两个序列padding一样长，衡量pitch相似度（变化相似度），voice相似度等。MCD，FFE。
+主观评测： AXY方法。
+
+*结果*
+
+* 文本不变的转换结果
+
+ref encoder的输入对应的文本和transcript encoder 的输入文本是一样的。
+在ref enocder是training没见过的时候，效果仍然不错。
+
+* 文本变换的转换结果
+
+效果奇怪，这个问题定义的不好，不同句法的句子，如何用同样的韵律？可能更粗细粒度的韵律信息比如更合适。
+可用于模版，ref encoder和transcript encoder 的文本来自同一模版。 比如上周末去<place>玩的好开心。place可以不一样。
+
+target speaker （通过speaker encoder输入）的特点信息被保留了多少。
+ref prosody是否会对target speaker产生干扰。
+ref 是male，target是female，只希望得到ref的韵律，但是实际是一个女性压低了声音在说话（被ref的pitch干扰了）。
+prosody会把绝对pitch信息带入到合成结果里。
+prosody和speaker representation之间存在entangle(纠缠)
+
+量化分析带入了多少。
+
+训练一个speaker id模型（输入是mel spectrom特征序列，也就是tactron的输出，输出speaker id). 在44个tts speaker上99%正确率。
+
+使用不同的ref和 target speaker产生tacotron输出特征，送入spekaer id，发现60%识别为ref的speaker， 21%识别为target speaker。
+
+理想情况是target 100%，即ref的speaker信息都没被带入，target里的speaker都带入。
+
+不过，人耳去听，每个输出都很非常targer speaker。
+
+换成维度更低的mel，从而减少pitch的信息，预测为target的提升到32%。
+
+未来工作：
+* 减少ref带入的speaker信息。
+* 更全面的metrics
+* 直接学习控制prosody，而不是用utt来提供。
 
 Style Tokens: Unsupervised Style Modeling, Control and Transfer in End-to-End Speech Synthesis
+
+思路不同,一组token，其中每个token是一个vector，表示某种style的embeding。
+
+reference encoder根据带生成的目标特征序列产生一个reference encoding R， R和token做attention操作，得到该reference的style embeding。
+这个style embeding再和text encoding的输出结合，提供给decoder生成目标特征序列。
+
+在inference时，可以给定一个style的参考声音，输入reference encoder，再和global token set做attention 得到style embdding。
+也可以在global token set中选一个token embeding（或者某几个的加权和）作为style embeding。
+
+相当于引入一组style encoding basic.这组基在style空间中具有一定的较好的区分性。 
+
+是否可在attention weight上加入sparse约束？
 
 Predicting Expressive Speaking Style From Text in End-to-End Speech Synthesis

@@ -187,11 +187,12 @@ Kaldi里只用viterbi align的方法。
 ```
 feats="ark,s,cs:apply-cmvn $cmvn_opts --utt2spk=ark:$sdata/JOB/utt2spk scp:$sdata/JOB/cmvn.scp scp:$sdata/JOB/feats.scp ark:- | add-deltas $delta_opts ark:- ark:- |"
 ```
-初始化HMM-GMM
+初始化HMM-GMM, monophone不做tree绑定，gmm-init-mono会生成一个dummy的tree文件。
 ```
 gmm-init-mono $shared_phones_opt "--train-feats=$feats subset-feats --n=10 ark:- ark:-|" $lang/topo $feat_dim \
 $dir/0.mdl $dir/tree || exit 1;
  ```
+
 
 对每个句子按找word序列->音素序列->hmm状态序列展开，得到句子对应的hmm-state级别的fst。
 ```
