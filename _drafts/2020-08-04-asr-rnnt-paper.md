@@ -29,11 +29,13 @@ RNN-T的提出是想解决CTC的两个问题：
 
 Attention机制和monotonic alignment Lattice机制可以同时使用。在Rnn-T框架下加入一个attention.效果？
 
+RNN-T和CTC是frame-sync decode
+attention是label-sync decode
 
 ## 论文
 ### 2020
 
-**SYNCHRONOUS TRANSFORMERS FOR END-TO-END SPEECH RECOGNITION**
+**SYNCHRONOUS TRANSFORMERS FOR END-；TO-END SPEECH RECOGNITION**
 https://arxiv.org/pdf/1912.02958.pdf
 
 **Attention-based Transducer for Online Speech Recognition**
@@ -87,11 +89,59 @@ chunk-wise的视角可以统一AED和RNN-T
 
 
 **EXPLORING PRE-TRAINING WITH ALIGNMENTS FOR RNN TRANSDUCER BASED END-TO-END SPEECH RECOGNITION**
+* pretrain encoder
+在encoder部分增加一个全联接+softmax， 用force alignment的结果做
+用的word alignment（可能是微软内部的工具），然后等分word内的word piece的时间戳。
+
+* pretrain encoder+decoder
+对U*T矩阵，用alignment进行U*T矩阵大小的扩展。
+三种方式：
+1. 每个u对应的t序列都用alignent label
+2. 按alignment的填充label
+3. 去除掉blank，减少模型对blank的bias
+
+效果3 > 1 > 2
+感觉这篇论文
+
+疑问：
+说CTC大部分是blank，所以encoder学到大部分都是blank，效果不好，但是Rnn-T不也是大部分是blank吗？
+
+结论：
+encoder的CE pre-train最好。比CTC pre-train要好。
 
 
 **HYBRID AUTOREGRESSIVE TRANSDUCER (HAT)**
+如何去除Decoder中的语言模型得分部分，得到am的得分。
+再用一个外部的lm。
+
+通过将local score变为。一个伯努利分布+一个softmax，从而将blank从softmax中分离，
+softmax可以用来计算序列的语言模型得分。
+
+f1网络算伯努利和f2网络算softmax。
+涉及到laplace估计？？这个推导？arxiv的submission？
+
 
 **RNN-TRANSDUCER WITH STATELESS PREDICTION NETWORK**
+1. 用1%数据训练得到baseline，用全量数据训练不同部分，对比提升效果。
+* 只训PN+JN效果也会提升 （32->24）
+* 只训enocoder(32->17)比只训PN+JN收益最大。
+* 全部都训效果最好。(32->15 )
+
+2. PN用一个前向网络（bi-gram） RNNT-SLP(StateLess Prediction)
+grapheme上下降多，主要是连续字符错误 food foood fooood， 没给出具体WER。
+论文认为：
+`an important job of the prediction network is that it stops the model from outputting repetitive symbols many times`
+在word-piece上下降少。
+
+实际2000小时的挪威上更好(22.2 -> 19.9)，11000hr的西班牙上9.6->9.7 在30000hr的英文上下降明显。
+ 6.8->7.2
+
+论文认为
+`the total number of the parameters is more important than whether the recurrent layers are in the encoder or the prediction network.`
+即模型总参数比pn中的recurrent层更重要，如果encoder增加2层，可以抵消掉pn中少的recurrent，然而该setting的实验结果是6.8->7.1
+本文有点睁眼说瞎话的感觉。 
+
+比不带语言模型解码的CTC要好 (13 vs 20.3)
 
 **RNN-T FOR LATENCY CONTROLLED ASR WITH IMPROVED BEAM SEARCH**
 
