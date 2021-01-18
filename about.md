@@ -8,7 +8,18 @@ I am a father/sport-lover/programmer living in Suzhou,China.
 I used to work in Microsoft, AISpeech and a start-up. Now I work as an engineer in Mobvoi, focusing on machine learning and ASR technique. 
 I also teach children basketball and coach an adult basketball team in spare time.
 
+**2021 blogging plan**
+1. New trends in E2E ASR.
+1. Deep Learning compiler.
 
+
+**2020 review**
+
+Only 3 on Kaldi nnet3 and ivector and 2 on CTC decoding.
+
+I write some notes on transducer and attention base ASR model, especilly on the comparision on streaming method. But it is still a draft and cloud not be put online. Maybe this year I will publish this after reading more papers and refining these notes. 
+
+Haven't spent much time on TVM. 
 
 **2020 blogging plan**
 
