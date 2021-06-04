@@ -102,7 +102,7 @@ nnet3网络是由node组成的有向无环拓扑图。node有batch和时间维�
 
 * component-node Kaldi提供的基础组件
 * dim-range-node 从上一层输出的矩阵中选取特定范围维度。
-* descriptir-node 起到胶水作用，提供一些方法将node组合连接起来
+* descriptor-node 起到胶水作用，提供一些方法将node组合连接起来
 * output-node/input-node
 
 ### component-node
@@ -135,8 +135,8 @@ component-node name=tdnn.affine.node component=tdnn.affine input=Append(Offset(m
 ```
 
 
-### descriptir-node
-descriptir-node提供一些常用操作，连接其他node。 descriptir-node的语法和其他node不同，其并不单独定义一行，一般出现在input中，上面配置里Append/IfDefined/Offset均为descriptir-node。
+### descriptor-node
+descriptor-node提供一些常用操作，连接其他node。 descriptor-node的语法和其他node不同，其并不单独定义一行，一般出现在input中，上面配置里Append/IfDefined/Offset均为descriptor-node。
 
 比如下例中，Append(Offset(input, -2), input,  Offset(input, 2))，表示将input节点在t-2，t，t+2位置的值作为拼接起来，作为tdnn.affine的输入.
 ```
@@ -147,7 +147,7 @@ component-node name=tdnn.affine component=tdnn.affine input=Append(Offset(input,
 可见Kaldi nnet3 config层并不提供TDNN的component，而是在对Affine层的输入利用Append+Offset实现了1维Dilated卷积，也就是TDNN. 但是kaldi在xconfig层面提供TDNN。
 
 
-下面例子例子，中的IfDefined也是一个descriptir-node，表示如果改值存在则使用，否则使用一个零值量。
+下面例子例子，中的IfDefined也是一个descriptor-node，表示如果改值存在则使用，否则使用一个零值量。
 ```
 component name=lstm.W_all type=NaturalGradientAffineComponent input-dim=96 output-dim=128  max-change=1.5
 component-node name=lstm.W_all component=lstm.W_all input=Append(tdnn.batchnorm, IfDefined(Offset(lstm.m_trunc, -3)))
