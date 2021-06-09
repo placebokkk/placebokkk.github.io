@@ -235,7 +235,7 @@ def forward(...):
 ```
 
 可以看到Encoder分为两大部分
-* self.embed是Subsampling层
+* self.embed是Subsampling网络
 * self.encoders是一组相同结构网络（Encoder Blocks）的堆叠
 
 除了forward，Encoder还实现了两个方法，此处不展开介绍。
@@ -243,12 +243,9 @@ def forward(...):
 * forward_chunk_by_chunk，用于python解码时，模拟流式解码时，基于chunk的前向计算。
 * forward_chunk, 用于runtime解码时，基于chunk的前向计算。
 
-
-
 下面先介绍Subsampling部分，再介绍Encoder Block
 
 #### Subsampling网络
-
 
 输入的序列数据越长，即帧的个数越多，网络计算量就越大。而在语音识别中，一定时间范围内的语音信号是接近的，多个连续帧对应的是同一个发音，另外，端到端语音识别使用建模单元一般是一个时间延续较长的单元（粗力度），比如建模单元是一个中文汉字，假如一个汉字用时0.2s，0.2s对应20帧，那如果将20帧的信息进行合并，比如合并为5帧，则可以线性的减少后续encoder网络前向计算、CTC loss和AED计算cross attention时的开销。这个过程叫降采样或者叫降帧率。Wenet中采用2D-CNN来实现降帧率。
 
@@ -289,8 +286,39 @@ torch.nn.Conv2d(odim, odim, kernel_size=3, stride=2)
 ```
 
 
+
+![train-arch](/assets/images/wenet/subsampling.png)
+```
+self.subsampling_rate = 4
 self.right_context = 6
-卷积使用到了右侧的信息，流式解码时，需要知道右侧上下依赖长度？？？细节有点晕。
+```
+
+这两个变量都在asr_model中进行了导出，在runtime时被使用，那么他们的含义是什么？
+
+在CTC或者WFST解码时，我们是一帧一帧解码，这里的帧指的是subsample之后的帧。我们称为解码帧，而模型输入的帧序列里的帧（subsample之前的）称为原始语音帧。
+
+在图里可以看到
+
+* 第1个解码帧，需要依赖第1到第7个原始语音帧。
+* 第2个解码帧，需要依赖第5到第11个原始语音帧。
+
+subsampling_rate，是指对于相邻两个解码帧，在原始帧上的间隔。
+right_context，对于某个解码帧，其对应的第一个原始帧的右侧还需要额外依赖多少帧，才能获得这个解码帧的全部信息。
+
+在runtime decoder中，每次是送一组帧进行前向计算并解码，一组（chunk）帧是定义是在解码帧级别的，在处理第一个chunk时，
+需要获得覆盖足够的context，之后每次根据chunk大小和subsampling_rate获取新的原始帧。比如，chunk_size=1，则第一个chunk需要1-7帧，第二个chunk只要新拿到8-11帧即可。
+```
+# runtime/core/decoder/torch_asr_decoder.cc
+# TorchAsrDecoder::AdvanceDecoding()
+    if (!start_) {                      // First chunk
+      int context = right_context + 1;  // Add current frame
+      num_requried_frames = (opts_.chunk_size - 1) * subsampling_rate + context;
+    } else {
+      num_requried_frames = opts_.chunk_size * subsampling_rate;
+    }
+```
+
+
 
 具体的实现过程。
 ```
@@ -461,12 +489,46 @@ if self.lorder > 0:
 ```
 
 
-# Decoder网络
+### Attention based Decoder网络
 
-对于Decoder, Wenet提供了自回归Transformer和双向自回归Transformer结构。 所为自回归，既上一时刻的网络输出要作为当前时刻的网络输入。
+对于Attention based Decoder, Wenet提供了自回归Transformer和双向自回归Transformer结构。 所谓自回归，既上一时刻的网络输出要作为网络当前时刻的输入，产生当前时刻的输出。
+
 在ASR整个任务中，输入是当前产生的文本，输出接下来要产生的文本，因此这个模型建模了语言模型的信息。
 
 这种网络在解码时，只能依次产生输出，而不能一次产生整个输出序列。
+
+来Encoder中的attention层区别在于，Decoder网络里每层DecoderLayer，除了进行self attention操作(self.self_attn)，也和encoder的输出进行cross attention操作(self.src_attn)
+
+另外在实现上，由于自回归和cross attention，mask的使用也和encoder有所区别。
+
+### CTC Loss
+
+CTC Loss包含了CTC decoder和CTC loss两部分，CTC decoder仅仅对Encoder做了一次前向线性操作，然后计算softmax.
+
+```
+        # hs_pad: (B, L, NProj) -> ys_hat: (B, L, Nvocab)
+        ys_hat = self.ctc_lo(F.dropout(hs_pad, p=self.dropout_rate))
+        # ys_hat: (B, L, D) -> (L, B, D)
+        ys_hat = ys_hat.transpose(0, 1)
+        ys_hat = ys_hat.log_softmax(2)
+        loss = self.ctc_loss(ys_hat, ys_pad, hlens, ys_lens)
+        # Batch-size average
+        loss = loss / ys_hat.size(1)
+        return loss
+```
+
+CTC loss则直接使用的torch提供的函数 `torch.nn.CTCLoss`.
+```
+        self.ctc_loss = torch.nn.CTCLoss(reduction=reduction_type)
+```
+
+
+### Attention based Decoder Loss
+
+wenet/transformer/label_smoothing_loss.py
+
+最大化自回归的概率，既在每个位置去计算模型输出概率和样本标注概率的Cross Entropy。
+CE中，样本标注概率是一个one-hot的表示，既真实的标注概率为1，其他概率为0. Smoothing Loss，对于样本标注概率，真实的标注概率为1-e，其余概率为e/(N-1)。
 
 
 
