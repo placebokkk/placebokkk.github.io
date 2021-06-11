@@ -360,8 +360,6 @@ x_mask是原始帧率下的记录batch各序列长度的mask，在计算attentio
 返回独立的pos_emb，是因为在relative position attention中，需要获取relative pos_emb的信息。在标准attention中该返回值不会被用到。
 
 
-
-
 #### Encoder Block
 **wenet/transformer/encoder_layer.py**
 
@@ -444,7 +442,7 @@ class ConformerEncoderLayer(nn.Module):
 
 **Conformer Block - RelPositionMultiHeadedAttention**
 
-*wenet/transformer/attention.py*
+**wenet/transformer/attention.py**
 
 attention.py中提供了两种attention的实现，MultiHeadedAttention可用于encoder和decoder的self-attention层，
 也可以用作decoder和encoder之间的inter-attention。
@@ -457,14 +455,14 @@ attention.py中提供了两种attention的实现，MultiHeadedAttention可用于
 
 **Conformer Block - PositionwiseFeedForward**
 
-*wenet/transformer/positionwise_feed_forward.py*
+**wenet/transformer/positionwise_feed_forward.py**
 
 PositionwiseFeedForward，对每个帧时刻的输入去做Affine计算，即通过一个[H1,H2]的的前向矩阵，把[B,T,H1]变为[B，T，H2]。
 
 
 **Conformer Block - ConvolutionModule**
 
-wenet/transformer/convolution.py
+**wenet/transformer/convolution.py**
 
 ConvolutionModule结构如下
 
