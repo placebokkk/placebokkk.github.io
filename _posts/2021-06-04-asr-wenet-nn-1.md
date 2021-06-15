@@ -4,14 +4,18 @@ title:  "Wenet网络设计与实现"
 date:   2021-06-04 10:00:00 +0800
 categories: wenet
 ---
-
-**本文目前为草稿，完成80%**
-
+**本文目前完成80%**
 本文分为四部分
 * 端到端语音识别基础
 * pytorch的实现介绍
 * 进阶内容:mask
-* 进阶内容:cache
+* 进阶内容:cache(未完成)
+
+{: class="table-of-content"}
+* TOC
+{:toc}
+
+
 
 ## 第1节: 端到端语音识别基础
 
