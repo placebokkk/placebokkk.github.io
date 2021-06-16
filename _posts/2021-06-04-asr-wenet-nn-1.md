@@ -668,7 +668,8 @@ ASRModel(
 ##  第3节: 进阶话题:Mask
 
 
-在Wenet的模型实现时，涉及到一些论文中没有描述细节，比如：
+在Wenet的模型实现时，涉及到一些论文中没有描述细节，比如:
+
 * 一个batch内的输入帧数不等长，进行padding的部分如何处理。
 * 一个batch内标注文本不等长，进行padding的部分如何处理。
 * decoder的自回归依赖关系如何表达。
@@ -685,7 +686,7 @@ ASRModel(
 
 一个batch内部各个样本长度不同，但是pytorch这类框架，处理的基本数据格式形式规整tensor，比如一个矩阵，因此输入和标注都需要padding，补上一些数据变成相等长度的序列再进行处理。
 
-Wenet里没, 输入的padding叫做frame batch padding，标注的padding叫label batch padding。
+Wenet中, 输入的padding叫做frame batch padding，标注的padding叫label batch padding。
 
 #### 处理Padding对Loss的影响
 
@@ -732,9 +733,9 @@ for batch_idx, batch in enumerate(data_loader):
 
 模型的输入分为两个部分:
 
-* Encoder的输入
+* Encoder的输入:
     * 声音特征序列: frame batch padding
-* Decoder的输入
+* Decoder的输入:
     * Encoder的输出: 降采样后的frame batch padding
     * 标注文本序列: label batch padding
 
@@ -833,12 +834,14 @@ subsampling网络中的卷积运算时本身不使用frame padding mask，但是
 
 #### MultiHeadedAttention Module的Mask实现
 
-MultiHeadedAttention可以用于三种不同的attention.
+MultiHeadedAttention可以用于三种不同的attention。
+
 * Encoder中的self-attention
 * Decoder中的self-attention
 * Decoder中的cross-attention
 
 不同的情况下，attention的mask会有所区别。
+
 * 用于self-attention时，每个样本的mask是一个长和高一样大小的方阵。
 * 用于cross-attention时，mask的纵轴从上到下为文本序列，横轴从左到右为帧序列。
 
@@ -885,6 +888,7 @@ def forward_attention ():
 ```
 
 mask.unsqueeze(1)是为了增加一个head维度。此时:
+
 * 当用于decoder cross-attention时， mask的shape为(batch, 1, 1, Tmax), scores的shape为(batch, head, Lmax, Tmax),第1，第2维会进行broadcast
 * 当用于decoder self-attention时， mask的shape为(batch, 1, Lmax, Lmax), scores的shape为(batch, head, Lmax, Lmax)，第1维会进行broadcast
 * 当用于encoder self-attention时， mask的shape为(batch, 1, Tmax, Tmax), scores的shape为(batch, head, Tmax, Tmax)，第1维会进行broadcast
