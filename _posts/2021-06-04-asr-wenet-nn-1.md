@@ -787,12 +787,12 @@ def forward()
 
 subsampling网络中的卷积运算时本身不使用frame padding mask，但是会对frame padding mask降采样得到subsample frame padding mask，后续在进行encoder相关计算时会使用这个subsample frame padding mask.
 
-比如在4倍降采样的网络里，使用了两个stride=2的卷积，因此对shape=(B, 1, L)
-的mask=进行了mask[:, :, :-2:2][:, :, :-2:2]的操作，新的mask的shape为(B, 1, L/4)。
+比如在4倍降采样的网络里，使用了两个stride=2的卷积，对shape=(B, 1, L)
+的mask进行了mask[:, :, :-2:2][:, :, :-2:2]的操作，新的mask的shape为(B, 1, L/4)。
 
 但是目前的实现存在小问题，最后几个解码帧（降采样帧）如果其卷积野中有padding的帧，则该降采样帧输入无效帧，不该参与后续计算，但是按照目前mask的实现仍会被使用。
 
-举个例子，训练时，某个样本的倒数4个原始帧都是padding的，那么此时最后一个解码帧不应该使用，其mask计算如下：
+举个例子，训练时，某个样本的倒数4个原始帧都是padding的，最后一个解码帧依赖于这些padding帧，因此不应该使用，其mask计算过程如下：
 
 原始mask（单个样本)
 ```
@@ -805,11 +805,11 @@ subsampling网络中的卷积运算时本身不使用frame padding mask，但是
 1       1
 ```
 
-此时subsample padding mask仍然会使用最后一个解码帧。
+注意，此时根据计算出对subsample padding mask，仍然会使用最后一个解码帧。
 
-类似的，如果倒数5个原始帧都是padding的，那么此时两个解码帧信息都不全，都不应该使用，但是subsample padding mask仍然会使用两个解码帧。可以自行验证下。
+类似的，如果倒数5个原始帧都是padding的，那么此时倒数两个解码帧信息都不全，都不应该使用，但是subsample padding mask仍然会使用两个解码帧。可以自行验证下。
 
-不过这个‘不完美’的实现问题对训练影响不大，只会影响1到2帧，相当于给模型增加了一些干扰。
+不过这个‘不完美’的实现问题对训练影响不大，只会影响最后1到2帧，相当于给模型增加了一些干扰。
 
 
 
@@ -820,7 +820,7 @@ subsampling网络中的卷积运算时本身不使用frame padding mask，但是
 考虑图中多层卷积的情况，假设kernel大小为3。 由于batch paddings的存在，在训练时，绿色单元依赖于红色单元，而红色单元不是0值。
 然而在解码时，因为没有batch padding存在，绿色单元依赖的红色单元位置的值是由conv paddings产生的，这个值是0值，所以如果不进行任何处理，存在训练和解码不一致的问题。
 
-因此，代码里利用subsample frame padding，将padding部分的值变为0.
+因此，代码里利用subsample frame padding，将每一层的batch padding部分的值变为0.
 
 ```
 # wenet/transformer/convolution.py
@@ -871,7 +871,9 @@ def forward(self, query: torch.Tensor, key: torch.Tensor,
     """
 ```
 
-具体实现时，是在计算attention的系数时使用mask，计算系数使用的softmax，需要先将不需要计算的位置的score设为负无穷而不是0，然后计算softmax后，在把不需要计算的位置权重系数设为0.
+**具体实现**
+
+计算attention的权重时使用mask：先将不需要计算的位置的score设为负无穷而不是0，然后计算softmax得到位置权重，再把不需要参与attention计算的位置的权重系数设为0.
 
 ```
 # wenet/transformer/attention.py
@@ -883,18 +885,20 @@ def forward_attention ():
 ```
 
 mask.unsqueeze(1)是为了增加一个head维度。此时:
-* 当用于decoder cross-attention时， mask的shape为(batch, 1, 1, Tmax),scores的shape为(batch, head, Lmax, Tmax),第1，第2维会进行broadcast
-* 当用于decoder self-attention时， mask的shape为(batch, 1, Lmax, Lmax),scores的shape为(batch, head, Lmax, Lmax)，第1维会进行broadcast
-* 当用于encoder self-attention时， mask的shape为(batch, 1, Tmax, Tmax),scores的shape为(batch, head, Tmax, Tmax)，第1维会进行broadcast
+* 当用于decoder cross-attention时， mask的shape为(batch, 1, 1, Tmax), scores的shape为(batch, head, Lmax, Tmax),第1，第2维会进行broadcast
+* 当用于decoder self-attention时， mask的shape为(batch, 1, Lmax, Lmax), scores的shape为(batch, head, Lmax, Lmax)，第1维会进行broadcast
+* 当用于encoder self-attention时， mask的shape为(batch, 1, Tmax, Tmax), scores的shape为(batch, head, Tmax, Tmax)，第1维会进行broadcast
 
 #### Chunk-based mask
 
-encoder中的chunk和动态chunk，本质上是限制attention的作用范围，可以通过attention mask来实现。
+为了实现流式解码，encoder中使用了基于chunk的attention，并允许各个batch使用不同的chunk大小。
+
+基于chunk的attention，本质上是去限制attention的作用范围，可以通过attention mask来实现。
 
 ![mask-encoder-attention](/assets/images/wenet/mask-encoder-attention.png)
 
-subsequent_chunk_mask方法用于创建一个固定大小chunk的mask。
-add_optional_chunk_mask方法则用于创建动态大小的chunk的mask。
+* subsequent_chunk_mask方法用于创建一个固定大小chunk的mask。
+* add_optional_chunk_mask方法则用于创建动态大小的chunk的mask。
 
 ```
 def add_optional_chunk_mask(xs: torch.Tensor, masks: torch.Tensor,
@@ -905,15 +909,15 @@ def add_optional_chunk_mask(xs: torch.Tensor, masks: torch.Tensor,
 ```
 
 * use_dynamic_chunk=Ture, 各的batch使用随机的chunk mask。
-    如果 use_dynamic_left_chunk=True， 各的batch使用随机的的left chunk长度依赖
-    如果 use_dynamic_left_chunk=False， 各的batch使用均依赖开头到当前chunk
+    * 如果 use_dynamic_left_chunk=True， 各的batch使用随机的的left chunk长度依赖
+    * 如果 use_dynamic_left_chunk=False， 各的batch使用均依赖开头到当前chunk
 * use_dynamic_chunk = false, static_chunk_size <= 0. 使用full-attention.
 * use_dynamic_chunk = false, static_chunk_size > 0. 使用固定的chunk mask.
 
 
 ### Decoder中的mask
 
-Decoder涉及的两中Attention。
+Decoder涉及到两种Attention。
 self.self_attn是decoder上的self attention。
 self.src_attn是decoder和encoder的cross attention。
 
