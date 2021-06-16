@@ -324,7 +324,7 @@ def forward(...):
 
 * x = x.unsqueeze(1)  # (b, c=1, t, f) 增加channel维，以符合2dConv需要的数据格式。
 * conv(x)中进行两次卷积，此时t维度约等于原来的1/4，因为没加padding，实际上是从长度T变为长度((T-1)/2-1)/2）。注意经过卷积后深度不再是1。
-* view(b, t, c * f) 将深度和高度合并平铺到同一维，然后通过self.out(）对每帧Affine变换, 从而每帧是odim维特征。
+* view(b, t, c * f) 将深度和高度合并平铺到同一维，然后通过self.out(）对每帧做Affine变换.
 * pos_enc(x, offset) 经过subsampling之后，帧数变少了，此时再计算Positional Eembedding。
 
 在纯self-attention层构建的网络里，为了保证序列的顺序不可变性而引入了PE，从而交换序列中的两帧，输出会不同。但是由于subsampling的存在，序列本身已经失去了交换不变性，所以其实PE可以省去。
@@ -353,13 +353,14 @@ self.right_context = 6
 * 第1个解码帧，需要依赖第1到第7个原始语音帧。
 * 第2个解码帧，需要依赖第5到第11个原始语音帧。
 
-subsampling_rate，是指对于相邻两个解码帧，在原始帧上的间隔。
-right_context，对于某个解码帧，其对应的第一个原始帧的右侧还需要额外依赖多少帧，才能获得这个解码帧的全部信息。
+subsampling_rate: 对于相邻两个解码帧，在原始帧上的间隔。
+
+right_context: 对于某个解码帧，其对应的第一个原始帧的右侧还需要额外依赖多少帧，才能获得这个解码帧的全部信息。
 
 在runtime decoder中，每次会送入一组帧进行前向计算并解码，一组（chunk）帧是定义在解码帧级别的，在处理第一个chunk时，接受输入获得当前chunk需要的所有的context，之后每次根据chunk大小和subsampling_rate获取新需要的原始帧。比如，chunk_size=1，则第一个chunk需要1-7帧，第二个chunk只要新拿到8-11帧即可。
 ```
 # runtime/core/decoder/torch_asr_decoder.cc
-# TorchAsrDecoder::AdvanceDecoding()
+TorchAsrDecoder::AdvanceDecoding()
     if (!start_) {                      // First chunk
       int context = right_context + 1;  // Add current frame
       num_requried_frames = (opts_.chunk_size - 1) * subsampling_rate + context;
@@ -468,7 +469,7 @@ attention.py中提供了两种attention的实现，`MultiHeadedAttention`和`Rel
 
 **wenet/transformer/positionwise_feed_forward.py**
 
-PositionwiseFeedForward，对各个帧时刻输入均使用同一个矩阵权重去做前向Affine计算，即通过一个[H1,H2]的的前向矩阵，把[B, T, H1]变为[B，T，H2]。
+PositionwiseFeedForward，对各个帧时刻输入均使用同一个矩阵权重去做前向Affine计算，即通过一个[H1, H2]的的前向矩阵，把[B, T, H1]变为[B，T，H2]。
 
 
 **Conformer Block - ConvolutionModule**
@@ -519,6 +520,8 @@ if self.lorder > 0:
 
 ### CTC Loss
 
+**wenet/transformer/ctc.py**
+
 CTC Loss包含了CTC decoder和CTC loss两部分，CTC decoder仅仅对Encoder做了一次前向线性计算，然后计算softmax.
 
 ```
@@ -541,7 +544,7 @@ CTC loss的部分则直接使用的torch提供的函数 `torch.nn.CTCLoss`.
 
 ### Attention based Decoder Loss
 
-wenet/transformer/label_smoothing_loss.py
+**wenet/transformer/label_smoothing_loss.py**
 
 Attention-based Decoder的Loss是在最大化自回归的概率，在每个位置计算模型输出概率和样本标注概率的Cross Entropy。这个过程采用teacher forcing的方式，而不采用scheduled sampling。
 
@@ -690,21 +693,21 @@ Wenet里没, 输入的padding叫做frame batch padding，标注的padding叫labe
 
 **Attention Loss**
 
-标注的padding的部分，使用一个特殊整数padding_idx来进行填补。在计算Attention loss，如果标注值为padding_idx，则不参与loss的计算。
+标注的padding的部分，使用一个特殊整数padding_idx来进行填补。在计算Attention loss时，如果标注值为padding_idx，则不参与loss的计算。
 ```
-        ignore = target == self.padding_idx  # (B,)
-        total = len(target) - ignore.sum().item()
-        target = target.masked_fill(ignore, 0)  # avoid -1 index
-        true_dist.scatter_(1, target.unsqueeze(1), self.confidence)
-        kl = self.criterion(torch.log_softmax(x, dim=1), true_dist)
-        denom = total if self.normalize_length else batch_size
-        return kl.masked_fill(ignore.unsqueeze(1), 0).sum() / denom
+    ignore = target == self.padding_idx  # (B,)
+    total = len(target) - ignore.sum().item()
+    target = target.masked_fill(ignore, 0)  # avoid -1 index
+    true_dist.scatter_(1, target.unsqueeze(1), self.confidence)
+    kl = self.criterion(torch.log_softmax(x, dim=1), true_dist)
+    denom = total if self.normalize_length else batch_size
+    return kl.masked_fill(ignore.unsqueeze(1), 0).sum() / denom
 ```
 
 
 **CTC loss**
 
-torch.nn.CTCLoss接口支持指定Batch内各个输出序列的长度hlens和各个标注序列的长度ys_lens
+torch.nn.CTCLoss接口支持指定Batch内各个输出序列的长度`hlens`和各个标注序列的长度`ys_lens`
 
 ```
 self.ctc_loss = torch.nn.CTCLoss(reduction=reduction_type)
@@ -712,6 +715,7 @@ loss = self.ctc_loss(ys_hat, ys_pad, hlens, ys_lens)
 ```
 
 hlens是encoder输出的Batch中各序列真实长度（除去padding部分的长度）。可以通过encoder_mask得到，encoder_mask会在后面介绍。
+
 ```
 # wenet/transformer/asr_model.py
 encoder_out_lens = encoder_mask.squeeze(1).sum(1)
@@ -736,7 +740,8 @@ for batch_idx, batch in enumerate(data_loader):
 
 实现时通过mask技巧对这些padding进行处理。mask是一个0，1值组成的掩码张量，wenet里mask的语义为：mask中值为1的部分是要考虑的，0的部分不考虑。
 
-Wenet的mask笼统的可分为两类
+Wenet的mask大致可分为两类:
+
 * 序列mask,（Batch, Length）， 每个 (Length,) 中值为1的位置代表了本序列要考虑的部分。
 * Attention mask,（Batch, L1, L2），每个（L1，L2) 用于约束L1中的哪些位置只能对于L2中的哪些位置进行attention操作。
 
@@ -753,9 +758,9 @@ chunk，这样，在解码时，chunk大小可以任意指定，大的chunk可�
 
 
 
-## 网络各部分的实现
+**网络各部分的实现**
 
-### Encoder
+### Encoder中的mask
 
 ```
 wenet/transformer/encoder.py
@@ -778,7 +783,7 @@ def forward()
 * mask_pad在Conformer Block中的卷积网络中使用。
 * add_optional_chunk_mask会在subsample frame padding mask基础上增加chunk mask，在Conformer Block中的self attention网络使用。
 
-#### Subsampling
+#### Subsampling中的mask
 
 subsampling网络中的卷积运算时本身不使用frame padding mask，但是会对frame padding mask降采样得到subsample frame padding mask，后续在进行encoder相关计算时会使用这个subsample frame padding mask.
 
@@ -906,7 +911,7 @@ def add_optional_chunk_mask(xs: torch.Tensor, masks: torch.Tensor,
 * use_dynamic_chunk = false, static_chunk_size > 0. 使用固定的chunk mask.
 
 
-### Decoder部分
+### Decoder中的mask
 
 Decoder涉及的两中Attention。
 self.self_attn是decoder上的self attention。
