@@ -40,6 +40,7 @@ categories: wenet
 不过这也不是必须的，HMM框架也可以不做帧对齐，比如论文End-to-end speech recognition using lattice-free MMI中直接进行训练。
 
 近几年，基于神经网络的端到端建模方式则更佳简洁
+
 * 直接以目标单元作为建模对象，比如中文使用`字`，英文使用`字符`或者`BPE`. 
 * 通过特殊的模型（目标函数），处理输入输出对齐未知的问题。
 
@@ -52,12 +53,13 @@ categories: wenet
 CTC本质上对所有合法的输出和输入对齐方式进行了穷举，所谓合法，即对齐后的输出序列能够按CTC规则规约得到的原标注序列，则为合法对齐。
 
 使用CTC目标函数会引入一个blank的输出单元，CTC规约规则为：
+
 * 连续的相同字符进行合并
 * 移除blank字符
 
 一个例子：
 
-某段语音数据，输入帧数为7帧（此处仅用于举例），原始的标注序列为“出门问问”。则下面两种对齐，通过CTC规则规约可以得到
+某段语音数据，输入帧数为7帧（此处仅用于举例），原始的标注序列为“出门问问”，为4个字，但是网络需要输出7个单元，输出和输入一一对应。CTC模型中，通过对原标注内的4个单元进行重复和插入blank来扩展为7个单元，下面两种都是可能的扩展序列，其中`-`为blank，如果扩展序列通过CTC规则规约可以得到原标注序列，则改扩展序列称为合法对齐序列。
 
 ```
 出-门问问-问  -> 出门问问
@@ -84,7 +86,7 @@ P(出门问问|X) = P(出-门问问-问|X) + P(出出门问问-问|X)
 
 求这个目标函数梯度的一种方式是穷举所有的有效CTC对齐，分别求梯度相加。但是这种方法复杂度太高。由于CTC本身结构特点，存在一种更高效的动态规划算法，可以极大的提升速度。具体可参考论文 [CTC-paper](http://www.cs.toronto.edu/~graves/icml_2006.pdf) 和文章[Eesen中的CTC实现](http://placebokkk.github.io/asr/2020/01/13/asr-ctc-eesen.html)。
 
-解码时，模型对每一个输入帧都给出输出，这种解码方法称为Frame同步解码。若某些帧输出为blank或者和前一帧是重复的字符，则可以合并。
+解码时，模型对每一个输入帧都给出输出，这种解码方法称为`Frame同步`解码。若某些帧输出为blank或者和前一帧是重复的字符，则可以合并。
 由于穷举序列中blank占的个数最多。最后模型倾向于输出尽量少的非blank字符，因此解码序列中往往每个非blank字符只输出一次，这个叫做CTC的尖峰效应。
 
 学习CTC的优秀材料：
@@ -102,7 +104,7 @@ Attention-based Encoder Decoder简称AED，也叫Seq2Seq框架，在ASR领域里
 **AED的解码**
 
 解码时，不需要对每一个输入帧都进行输出，而是根据整个输入序列信息和已输出信息进行下一次输出，直到输出一个特殊结束字符。
-这种解码方法称为Label同步解码。
+这种解码方法称为`Label同步`解码。
 
 **多说一句**
 
@@ -119,23 +121,21 @@ CTC没有显示构建文本之间的关系，RNN-t模型是一种显示建模了
 
 ### 神经网络类型
 
-常用的神经网络类型包括DNN，CNN，RNN，Self-attention等，这些方法进行组合，衍生除了各种模型，Wenet中，对于encoder网络部分，选用了Transformer和Conformer两种类型。Wenet中，对于decoder网络部分，选用了Transformer两种类型。
+常用的神经网络类型包括DNN，CNN，RNN，Self-attention等，这些方法进行组合，衍生除了各种模型，Wenet中，对于encoder网络部分，支持Transformer和Conformer两种网络。decoder网络部分，支持Transformer网络。
 
-Transformer中每层单元使用self-attention，res，relu，ff层。
+Transformer由多个Transformer Block堆叠，每个Block中会使用self-attention，res，relu，ff层。
 
-Conformer中每层单元使用conv，self-attention，res，relu，ff层。
+Conformer由多个Conformer Block堆叠，每个Block中会使用conv，self-attention，res，relu，ff层。
 
 **降采样/降帧率**
 
-输入序列越长，即帧的个数越多，网络计算量就越大。而在语音识别中，一定时间范围内的语音信号是接近的，多个连续帧对应的是同一个发音，另外，端到端语音识别使用建模单元一般是一个时间延续较长的单元（粗粒度），比如建模单元是一个中文汉字，假如一个汉字用时0.2s，0.2s对应20帧，那如果将20帧的信息进行合并，比如合并为5帧，则可以线性的减少后续encoder网络的前向计算、CTC loss和AED计算cross attention时的开销。
+输入序列越长，即帧的个数越多，网络计算量就越大。而在语音识别中，一定时间范围内的语音信号是相似的，多个连续帧对应的是同一个发音，另外，端到端语音识别使用建模单元一般是一个时间延续较长的单元（粗粒度），比如建模单元是一个中文汉字，假如一个汉字用时0.2s，0.2s对应20帧，如果将20帧的信息进行合并，比如合并为5帧，则可以线性的减少后续encoder网络的前向计算、CTC loss和AED计算cross attention时的开销。
 
 可以用不同的神经网络来进行降采样，Wenet中使用的是2D-CNN。
 
 ### 流式语音识别
 
-虽然CTC解码是Frame同步的，但是要想支持低延迟的流式识别，Encoder中的计算对右侧的依赖不能太长，fully Self-attention会对依赖整个序列，wenet采用基于chunk的attention，将序列划分为固定大小的chunk，每个chunk内部的帧不会依赖于chunk右侧的帧。同时，连续堆叠的convolution层会带来较大的右侧依赖，Wenet则采用了因果卷积来避免右侧依赖。
-
-
+虽然CTC解码是`Frame同步`的，但是要想支持低延迟的流式识别，Encoder中的计算对右侧的依赖不能太长。标准的Fully self-attention会对依赖整个序列，不能进行流式计算，因此wenet采用了基于chunk的attention，将序列划分为多个固定大小的chunk，每个chunk内部的帧不会依赖于chunk右侧的帧。同时，连续堆叠的convolution层会带来较大的右侧依赖，wenet则采用了因果卷积来避免convolution层的右侧依赖。
 
 
 ## 第2节: Wenet中的神经网络设计与实现
@@ -146,7 +146,7 @@ Wenet的代码借鉴了Espnet等开源实现，比较简洁，但是为了实现
 
 核心模型的代码位于`wenet/transformer/`目录
 
-### 模型入口 asr_model.py
+### 模型入口 ASRModel
 
 **wenet/transformer/asr_model.py**
 
@@ -160,10 +160,11 @@ def __init__():
     self.ctc = ctc
     self.criterion_att = LabelSmoothingLoss(...）# AED的loss
 ```
-ASRModel的init中定义了encoder, decoder, ctc, criterion_att几个基本模块。
-* encoder是shared Encoder
-* decoder是attention-based decoder网络
-* ctc是ctc decoder网络（很简单，仅仅是前向网络和softmax）和ctc loss
+ASRModel的init中定义了encoder, decoder, ctc, criterion_att几个基本模块。其整体网络拓扑如下图所示。
+
+* encoder是Shared Encoder，其中也包括了Subsampling网络。
+* decoder是Attention-based Decoder网络
+* ctc是ctc Decoder网络（很简单，仅仅是前向网络和softmax）和ctc loss
 * criterion_att是attention-based decoder的自回归似然loss，实际是一个LabelSmoothing的loss。
 
 
@@ -181,10 +182,10 @@ print(model)
 def init_asr_model(config):
 ```
 
-该方法根据传入的config，创建一个ASRModel实例。 config内容由训练模型时使用的yaml文件提供。这个创建仅仅是构建了一个初始模型，其参数是随机的，可以通过`model.load_state_dict(checkpoint)`从训练好的模型中加载参数。
+该方法根据传入的config，创建一个ASRModel实例。 config内容由训练模型时使用的yaml文件提供。这个创建仅仅是构建了一个初始模型，其参数是随机的，可以通过 `model.load_state_dict(checkpoint)`从训练好的模型中加载参数。
 
 #### 前向计算
-pytorch框架下，只需定义模型的前向计算forword,。对于每个Module，可以通过forward学习其具体实现。
+pytorch框架下，只需定义模型的前向计算forword,。对于每个Module，可以通过阅读forward代码来学习其具体实现。
 ```
 class ASRModel(torch.nn.Module):
   def forward()
@@ -192,6 +193,7 @@ class ASRModel(torch.nn.Module):
     # Encoder
     encoder_out, encoder_mask = self.encoder(speech, speech_lengths)
     encoder_out_lens = encoder_mask.squeeze(1).sum(1)
+
     # Attention-decoder
     loss_att, acc_att = self._calc_att_loss(encoder_out, encoder_mask,
                                               text, text_lengths)
@@ -204,11 +206,9 @@ class ASRModel(torch.nn.Module):
 #### 其他接口
 
 ASRModel除了定义模型结构和实现前向计算用于训练外，还有两个功能：
+
 * 提供多种python的解码接口
 * 提供runtime中需要使用的接口。
-
-
-
 
 python解码接口
 ```
@@ -220,7 +220,6 @@ ctc_greedy_search() # CTC greedy search
 
 用于Runtime的接口, 这些接口均有@torch.jit.export注解，可以在C++中调用
 ```
-
 subsampling_rate()
 right_context()
 sos_symbol()
@@ -232,6 +231,7 @@ ctc_activation()
 
 
 其中比较重要的是:
+
 * `forward_attention_decoder()` Attention Decoder的序列forward计算，非自回归模式。
 * `ctc_activation()` CTC Decoder forward计算
 * `forward_encoder_chunk()` 基于chunk的Encoder forward计算
@@ -255,6 +255,7 @@ class BaseEncoder(torch.nn.Module):
 ```
 
 可以看到Encoder分为两大部分
+
 * self.embed是Subsampling网络
 * self.encoders是一组相同结构网络（Encoder Blocks）的堆叠
 
@@ -266,17 +267,19 @@ class BaseEncoder(torch.nn.Module):
 下面先介绍Subsampling部分，再介绍Encoder Block
 
 #### Subsampling网络
+
 **wenet/transformer/subsampling.py**
 
-前文已经介绍了降采样或者降帧率的目的。
+前文已经介绍了降采样或者降帧率的目的。这里不再重述。
 
 语音任务里有两种使用CNN的方式，一种是2D-Conv，一种是1D-Conv：
+
 * 2D-Conv: 输入数据看作是深度(通道数）为1，高度为F（Fbank特征维度，idim），宽度为T（帧数）的一张图.
 * 1D-Conv: 输入数据看作是深度(通道数）为F（Fbank特征维度)，高度为1，宽度为T（帧数）的一张图.
 
-Kaldi中著名的TDNN就是是1D-Conv，在Wenet中采用2D-Conv来实现降帧率。
+Kaldi中著名的TDNN就是是1D-Conv，在Wenet中采用2D-Conv来实现降采样。
 
-这里选择把降帧率降低4倍的网络`Conv2dSubsampling4`来说明。
+Wenet中提供了多个降采样的网络，这里选择把帧率降低4倍的网络`Conv2dSubsampling4`来说明。
 
 ```
 class Conv2dSubsampling4(BaseSubsampling):
@@ -299,48 +302,15 @@ class Conv2dSubsampling4(BaseSubsampling):
         self.right_context = 6
 ```
 
-`Conv2dSubsampling4`通过两个`stride=2`的2d-CNN，把图像的宽和高都降为1/4. 因为图像的宽即是帧数，所以帧数变为1/4. 
+我们可以把一个语音帧序列[T,D]看作宽是T，高是D，深度为1的图像。`Conv2dSubsampling4`通过两个`stride=2`的2d-CNN，把图像的宽和高都降为1/4. 因为图像的宽即是帧数，所以帧数变为1/4. 
 ```
 torch.nn.Conv2d(1, odim, kernel_size=3, stride=2)
 torch.nn.Conv2d(odim, odim, kernel_size=3, stride=2)
 ```
 
 
-![subsampling](/assets/images/wenet/subsampling.png)
+**具体的实现过程**
 
-```
-self.subsampling_rate = 4
-self.right_context = 6
-```
-
-这两个变量都在asr_model中进行了导出，在runtime时被使用，那么他们的含义是什么？
-
-在CTC或者WFST解码时，我们是一帧一帧解码，这里的帧指的是subsample之后的帧。我们称为解码帧，而模型输入的帧序列里的帧（subsample之前的）称为原始语音帧。
-
-在图里可以看到
-
-* 第1个解码帧，需要依赖第1到第7个原始语音帧。
-* 第2个解码帧，需要依赖第5到第11个原始语音帧。
-
-subsampling_rate，是指对于相邻两个解码帧，在原始帧上的间隔。
-right_context，对于某个解码帧，其对应的第一个原始帧的右侧还需要额外依赖多少帧，才能获得这个解码帧的全部信息。
-
-在runtime decoder中，每次是送一组帧进行前向计算并解码，一组（chunk）帧是定义是在解码帧级别的，在处理第一个chunk时，
-需要获得覆盖足够的context，之后每次根据chunk大小和subsampling_rate获取新的原始帧。比如，chunk_size=1，则第一个chunk需要1-7帧，第二个chunk只要新拿到8-11帧即可。
-```
-# runtime/core/decoder/torch_asr_decoder.cc
-# TorchAsrDecoder::AdvanceDecoding()
-    if (!start_) {                      // First chunk
-      int context = right_context + 1;  // Add current frame
-      num_requried_frames = (opts_.chunk_size - 1) * subsampling_rate + context;
-    } else {
-      num_requried_frames = opts_.chunk_size * subsampling_rate;
-    }
-```
-
-
-
-具体的实现过程。
 ```
 def forward(...):
     x = x.unsqueeze(1)  # (b, c=1, t, f)
@@ -364,10 +334,46 @@ x_mask是原始帧率下的记录batch各序列长度的mask，在计算attentio
 返回独立的pos_emb，是因为在relative position attention中，需要获取relative pos_emb的信息。在标准attention中该返回值不会被用到。
 
 
+![subsampling](/assets/images/wenet/subsampling.png)
+
+**上下文依赖**
+
+注意Conv2dSubsampling4中的这两个变量。
+```
+self.subsampling_rate = 4
+self.right_context = 6
+```
+
+这两个变量都在asr_model中进行了导出，在runtime时被使用，他们的含义是什么？
+
+在CTC或者WFST解码时，我们是一帧一帧解码，这里的帧指的是subsample之后的帧。我们称为解码帧，而模型输入的帧序列里的帧（subsample之前的）称为原始语音帧。
+
+在图里可以看到
+
+* 第1个解码帧，需要依赖第1到第7个原始语音帧。
+* 第2个解码帧，需要依赖第5到第11个原始语音帧。
+
+subsampling_rate，是指对于相邻两个解码帧，在原始帧上的间隔。
+right_context，对于某个解码帧，其对应的第一个原始帧的右侧还需要额外依赖多少帧，才能获得这个解码帧的全部信息。
+
+在runtime decoder中，每次会送入一组帧进行前向计算并解码，一组（chunk）帧是定义在解码帧级别的，在处理第一个chunk时，接受输入获得当前chunk需要的所有的context，之后每次根据chunk大小和subsampling_rate获取新需要的原始帧。比如，chunk_size=1，则第一个chunk需要1-7帧，第二个chunk只要新拿到8-11帧即可。
+```
+# runtime/core/decoder/torch_asr_decoder.cc
+# TorchAsrDecoder::AdvanceDecoding()
+    if (!start_) {                      // First chunk
+      int context = right_context + 1;  // Add current frame
+      num_requried_frames = (opts_.chunk_size - 1) * subsampling_rate + context;
+    } else {
+      num_requried_frames = opts_.chunk_size * subsampling_rate;
+    }
+```
+
+
 #### Encoder Block
+
 **wenet/transformer/encoder_layer.py**
 
-对于Encoder, Wenet提供了Transformer和Conformer两种结构，Conformer在Transformer里引入了卷积层。
+对于Encoder, Wenet提供了Transformer和Conformer两种结构，Conformer在Transformer里引入了卷积层，是目前语音识别任务效果最好的模型之一。
 强烈建议阅读这篇文章 [The Annotated Transformer](https://nlp.seas.harvard.edu/2018/04/03/attention.html), 了解Transformer的结构和实现。
 
 
@@ -403,11 +409,11 @@ self.encoders = torch.nn.ModuleList([
 
 ```
 
-ConformerEncoderLayer涉及的主要模块有：
+仅介绍ConformerEncoderLayer，其涉及的主要模块有：
+
 * RelPositionMultiHeadedAttention
 * PositionwiseFeedForward
 * ConvolutionModule
-
 
 conformer论文中conformer block的结构如图
 
@@ -415,7 +421,7 @@ conformer论文中conformer block的结构如图
 
 
 
-如果不考虑cache，normalize_before=True，feed_forward_macaron=True，则wenet中的ConformerEncoderLayer的forward可以简化为
+如果不考虑cache，使用normalize_before=True，feed_forward_macaron=True，则wenet中的ConformerEncoderLayer的forward可以简化为
 ```
 class ConformerEncoderLayer(nn.Module):
     def forward(...):
@@ -441,27 +447,28 @@ class ConformerEncoderLayer(nn.Module):
 
         x = self.norm_final(x)
 ```
-对于RelPositionMultiHeadedAttention，ConvolutionModule，PositionwiseFeedForward，都是前有layernorm，后有dropout，再搭配res。
+
+可以看到，对于RelPositionMultiHeadedAttention，ConvolutionModule，PositionwiseFeedForward，都是前有Layernorm，后有Dropout，再搭配Residual。
 
 
 **Conformer Block - RelPositionMultiHeadedAttention**
 
 **wenet/transformer/attention.py**
 
-attention.py中提供了两种attention的实现，MultiHeadedAttention可用于encoder和decoder的self-attention层，
-也可以用作decoder和encoder之间的inter-attention。
+attention.py中提供了两种attention的实现，`MultiHeadedAttention`和`RelPositionMultiHeadedAttention`。
 
-原始的Conformer论文中提到的self-attention是Relative Position Multi Headed Attention，这是transformer-xl中提出的一种改进attention，和标准attention的区别在于，其中显示利用了相对位置信息，具体实现可参考文章。 [Conformer ASR中的Relative Positional Embedding](https://zhuanlan.zhihu.com/p/344604604)
+`MultiHeadedAttention`用于Transformer。`RelPositionMultiHeadedAttention`用于Conformer。
 
-注意，wenet中实现的Relative Position Multi Headed Attention实际上是有问题的（和论文不同）, 因为采用正确的实现并没有什么提升，就没有合并更新代码。
+原始的Conformer论文中提到的self-attention是Relative Position Multi Headed Attention，这是transformer-xl中提出的一种改进attention，和标准attention的区别在于，其中显示利用了相对位置信息，具体原理和实现可参考文章。 [Conformer ASR中的Relative Positional Embedding](https://zhuanlan.zhihu.com/p/344604604)
 
+注意，wenet中实现的Relative Position Multi Headed Attention是存在问题的, 但是由于采用正确的实现并没有什么提升，就没有更新成transformer-xl中实现。
 
 
 **Conformer Block - PositionwiseFeedForward**
 
 **wenet/transformer/positionwise_feed_forward.py**
 
-PositionwiseFeedForward，对每个帧时刻的输入去做Affine计算，即通过一个[H1,H2]的的前向矩阵，把[B,T,H1]变为[B，T，H2]。
+PositionwiseFeedForward，对各个帧时刻输入均使用同一个矩阵权重去做前向Affine计算，即通过一个[H1,H2]的的前向矩阵，把[B, T, H1]变为[B，T，H2]。
 
 
 **Conformer Block - ConvolutionModule**
@@ -470,27 +477,27 @@ PositionwiseFeedForward，对每个帧时刻的输入去做Affine计算，即通
 
 ConvolutionModule结构如下
 
-Wenet中采用了使用了因果卷积，即不看右侧上下文, 这样无论模型含有多少卷积层，对右侧的上下文都无依赖。
-Causal Convolution。wenet/transformer/convolution.py
+Wenet中使用了因果卷积(Causal Convolution)，即不看右侧上下文，这样无论模型含有多少卷积层，对右侧的上下文都无依赖。
 
-原始的对称卷积，如果不左右padding，则做完卷积后长度会减小。
+
+原始的对称卷积，如果不进行左右padding，则做完卷积后长度会减小。
 
 ![casual-conv](/assets/images/wenet/casual-conv.png)
 
 因此标准的卷积，为了保证卷积后序列长度一致，需要在左右各pad长度为(kernel_size - 1) // 2的 0.
 
 ```
-  if causal:
-    padding = 0
-    self.lorder = kernel_size - 1
-  else:
+  if causal: # 使用因果卷积
+    padding = 0 # Conv1D函数设置的padding长度
+    self.lorder = kernel_size - 1 # 因果卷积左侧手动padding的长度
+  else: # 使用标准卷积
     # kernel_size should be an odd number for none causal convolution
     assert (kernel_size - 1) % 2 == 0
-    padding = (kernel_size - 1) // 2
+    padding = (kernel_size - 1) // 2 # Conv1D函数设置的padding长度
     self.lorder = 0
 ```
 
-因果卷积的实现其实很简单，只在左侧pad长度为kernel_size - 1的0，即可实现。
+因果卷积的实现其实很简单，只在左侧pad长度为kernel_size - 1的0，即可实现。如图所示。
 ```
 if self.lorder > 0:
   if cache is None:
@@ -502,33 +509,33 @@ if self.lorder > 0:
 
 对于Attention based Decoder, Wenet提供了自回归Transformer和双向自回归Transformer结构。 所谓自回归，既上一时刻的网络输出要作为网络当前时刻的输入，产生当前时刻的输出。
 
-在ASR整个任务中，输入是当前产生的文本，输出接下来要产生的文本，因此这个模型建模了语言模型的信息。
+在ASR整个任务中，Attention based Decoder的输入是当前已经产生的文本，输出接下来要产生的文本，因此这个模型建模了语言模型的信息。
 
 这种网络在解码时，只能依次产生输出，而不能一次产生整个输出序列。
 
-来Encoder中的attention层区别在于，Decoder网络里每层DecoderLayer，除了进行self attention操作(self.self_attn)，也和encoder的输出进行cross attention操作(self.src_attn)
+和Encoder中的attention层区别在于，Decoder网络里每层DecoderLayer，除了进行self attention操作(self.self_attn)，也和encoder的输出进行cross attention操作(self.src_attn)
 
 另外在实现上，由于自回归和cross attention，mask的使用也和encoder有所区别。
 
 ### CTC Loss
 
-CTC Loss包含了CTC decoder和CTC loss两部分，CTC decoder仅仅对Encoder做了一次前向线性操作，然后计算softmax.
+CTC Loss包含了CTC decoder和CTC loss两部分，CTC decoder仅仅对Encoder做了一次前向线性计算，然后计算softmax.
 
 ```
-        # hs_pad: (B, L, NProj) -> ys_hat: (B, L, Nvocab)
-        ys_hat = self.ctc_lo(F.dropout(hs_pad, p=self.dropout_rate))
-        # ys_hat: (B, L, D) -> (L, B, D)
-        ys_hat = ys_hat.transpose(0, 1)
-        ys_hat = ys_hat.log_softmax(2)
-        loss = self.ctc_loss(ys_hat, ys_pad, hlens, ys_lens)
-        # Batch-size average
-        loss = loss / ys_hat.size(1)
-        return loss
+    # hs_pad: (B, L, NProj) -> ys_hat: (B, L, Nvocab)
+    ys_hat = self.ctc_lo(F.dropout(hs_pad, p=self.dropout_rate))
+    # ys_hat: (B, L, D) -> (L, B, D)
+    ys_hat = ys_hat.transpose(0, 1)
+    ys_hat = ys_hat.log_softmax(2)
+    loss = self.ctc_loss(ys_hat, ys_pad, hlens, ys_lens)
+    # Batch-size average
+    loss = loss / ys_hat.size(1)
+    return loss
 ```
 
-CTC loss则直接使用的torch提供的函数 `torch.nn.CTCLoss`.
+CTC loss的部分则直接使用的torch提供的函数 `torch.nn.CTCLoss`.
 ```
-        self.ctc_loss = torch.nn.CTCLoss(reduction=reduction_type)
+    self.ctc_loss = torch.nn.CTCLoss(reduction=reduction_type)
 ```
 
 
@@ -536,13 +543,13 @@ CTC loss则直接使用的torch提供的函数 `torch.nn.CTCLoss`.
 
 wenet/transformer/label_smoothing_loss.py
 
-最大化自回归的概率，既在每个位置去计算模型输出概率和样本标注概率的Cross Entropy。
-CE中，样本标注概率是一个one-hot的表示，既真实的标注概率为1，其他概率为0. Smoothing Loss，对于样本标注概率，真实的标注概率为1-e，其余概率为e/(N-1)。
+Attention-based Decoder的Loss是在最大化自回归的概率，在每个位置计算模型输出概率和样本标注概率的Cross Entropy。这个过程采用teacher forcing的方式，而不采用scheduled sampling。
+
+每个位置上，样本标注概率是一个one-hot的表示，既真实的标注概率为1，其他概率为0. Smoothing Loss中，对于样本标注概率，将真实的标注概率设置为1-e，其他概率设为e/(V-1)。
 
 
-
-# 网络的整体结构
-
+### 网络的完整结构
+通过`print()`打印出的`ASRModel`的网络结构。
 ```
 ASRModel(
   (encoder): ConformerEncoder(
@@ -663,12 +670,13 @@ ASRModel(
 * 一个batch内标注文本不等长，进行padding的部分如何处理。
 * decoder的自回归依赖关系如何表达。
 * chunk-based的encoder如何实现。
+
 这些细节会对convolution和attention网络以及loss的计算带来影响。
-因此在实现时，需要引入各种mask来进行处理。本文通过系统的介绍Wenet代码中涉及的mask，帮助初学者更好的理解wenet的实现。
+因此在实现时，需要引入各种mask来进行处理。本节通过系统的介绍Wenet代码中涉及的mask，帮助初学者更好的理解wenet的实现。
 
 可以参考`wenet/utils/mask.py`中的注释也提供了说明和示例。
 
-## 三类问题
+**三类问题**
 
 ### 问题1:Batch Padding
 
