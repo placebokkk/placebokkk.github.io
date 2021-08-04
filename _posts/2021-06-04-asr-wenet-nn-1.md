@@ -988,8 +988,8 @@ Decoder中每一层中，均需要计算如上两个attention，从网络视角�
 什么是cache？
 
 对于流式推断，输入是一个个chunk的到来，对第i个chunk，当计算第k层网络的输出时，由于网络结构存在对左侧上下文的依赖，需要依赖第k-1层网络里在i之前的一些chunks的输出。
-如果对于当前到来chunk，将其和之前的整个chunk序列拼起来作为网络输入进行前向，理论上没问题，但是其计算量会随着整个序列的长度和线性增长。
-对于那些已经计算过的chunk的，可以将那些在计算下一个chunk的输出时需要的中间量保存下来，从而避免重新计算。这种方式就叫cache。
+如果对于当前到来chunk，将其和依赖的chunk序列（比如10层self-attention层，每层依赖左侧4个chunk，则累积起来需要依赖左侧40个chunk）拼起来作为网络输入进行前向，其计算量会比较大。
+对于那些已经计算过的chunk，可以将那些在计算下一个chunk的输出时需要的中间量保存下来，从而减少重复计算。这种方式就叫cache。
 
 另外，wenet的网络在设计时，对于因果卷积和self-attention的左侧上下文都使用有限长度，因此无论序列多长，每次cache的大小是不变的（不增长）。
 
@@ -1035,13 +1035,14 @@ required_cache_size = decoding_chunk_size * num_decoding_left_chunks
 ### offset
 
 当按chunk进行输入时，不能直接得到chunk在序列中的位置，需要传入offset给出该chunk在整个序列里的偏移，从而可以计算positional encoding的位置。
-xs, pos_emb, _ = self.embed(xs, tmp_masks, offset)
 
+```
+xs, pos_emb, _ = self.embed(xs, tmp_masks, offset)
+```
 
 ### subsampling内部
 
-subsampling内部的计算不进行cache。
-
+subsampling内部的计算不进行cache。其实现比较复杂，且不使用cache计算量不大
 
 
 ### subsampling_cache
