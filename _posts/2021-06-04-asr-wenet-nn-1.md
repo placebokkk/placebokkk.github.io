@@ -5,7 +5,7 @@ date:   2021-06-04 10:00:00 +0800
 categories: wenet
 ---
 
-**如果觉得wenet还不错， 请点个star吧** 
+**如果觉得wenet还不错，点个star支持我们一下吧** 
 
 [https://github.com/wenet-e2e/wenet](https://github.com/wenet-e2e/wenet)
 
