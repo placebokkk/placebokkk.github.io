@@ -1007,7 +1007,7 @@ Decoder中每一层中，均需要计算如上两个attention，从网络视角�
 `forward_chunk_by_chunk()`是python推断中使用按chunk依次计算的接口，该方法的结果，和送入整个序列通过mask进行流式模拟的结果应该是一致的。
 其内部调用的`forward_chunk()`函数。
 
-`forward_chunk()`是送入单个chunk进行前向的方法。
+`forward_chunk()`是送入单个chunk进行前向计算的核心函数。下面从该函数的内容来了解cache的实现。
 
 ```
 def forward_chunk(
@@ -1022,15 +1022,25 @@ def forward_chunk(
                List[torch.Tensor]]:
 ```
 
-由于单个chunk在计算时需要之前的chunk的计算得到的信息，因此这里保存了几钟需要的cache信息。
-* required_cache_size是self-attention是对左侧的依赖长度，即subsampling_cache和elayers_output_cache的cache大小。
-* conformer_cnn_cache的大小和required_cache_size无关，和casual网络的左侧上下文相关。
+xs是当前的chunk输入，由于对于单个chunk的前向计算，需要之前的chunk的计算得到的信息，因此这里需要传入相关的cache信息，具体有三个
+* subsampling_cache:torch.Tensor  subsampling的输出进行cache。即第一个conformer block的输入。
+* elayers_output_cache:List[torch.Tensor] 第1个到最后1个conformer block的输出的cache。也就是第2个conformer block的输入和CTC层的输入。
+* conformer_cnn_cache:List[torch.Tensor] conformer block里的conv层的左侧依赖的输入cache。
 
+cache的大小
+
+* subsampling_cache和elayers_output_cache的大小由self-attention是对左侧的依赖长度required_cache_size决定。
 ```
 required_cache_size = decoding_chunk_size * num_decoding_left_chunks
 ```
+* conformer_cnn_cache的大小和required_cache_size无关，由casual网络的左侧上下文lorder决定。
 
-对于self-attention的所有缺失的输入都要cache。
+函数返回了四个值，包括当前chunk输入对应的输出，更新后的三个cache。
+
+计算过程参考下图
+
+![cache-all](/assets/images/wenet/cache-all.png)
+
 
 ### offset
 
@@ -1047,11 +1057,12 @@ subsampling内部的计算不进行cache。其实现比较复杂，且不使用c
 
 ### subsampling_cache
 
-对subsampling的输出进行cache。
-也就是第一个conformer block的输入。
+subsampling的输出进行cache。即第一个conformer block的输入。
+
 ```
 if subsampling_cache is not None:
     cache_size = subsampling_cache.size(1)
+    # xs是第一个conformer block的输入
     xs = torch.cat((subsampling_cache, xs), dim=1)
 else:
     cache_size = 0
@@ -1062,42 +1073,75 @@ elif required_cache_size == 0:
     next_cache_start = xs.size(1)
 else:
     next_cache_start = max(xs.size(1) - required_cache_size, 0)
+# 更新subsampling_cache
 r_subsampling_cache = xs[:, next_cache_start:, :]
 ```
-[TODO]图
+
 
 ### elayers_output_cache
 
-对第1个到最后1个conformer block的输出进行cache。
-
-也就是第2个conformer block的输入和conformer block之后的一层的输入。
+第1个到最后1个conformer block的输出的cache。也就是第2个conformer block的输入和CTC层的输入。
 
 ```
 for i, layer in enumerate(self.encoders):
+    attn_cache = elayers_output_cache[i]
+    cnn_cache = conformer_cnn_cache[i]
     xs, _, new_cnn_cache = layer(xs,
         masks,
         pos_emb,
         output_cache=attn_cache,
         cnn_cache=cnn_cache)
+    # 更新elayers_output_cache
     r_elayers_output_cache.append(xs[:, next_cache_start:, :])
 ```
-output_cache并不参与计算，用来获取cache长度，
-```
-if output_cache is None:
-    x_q = x
-else:
-    chunk = x.size(1) - output_cache.size(1)
-    x_q = x[:, -chunk:, :]
-    residual = residual[:, -chunk:, :]
-    mask = mask[:, -chunk:, :]
+
+注意，此处的xs不是当前的chunk，而是当前chunk+cache输入，所以其长度不是chunk_size, 而是chunk_size + required_cache_size。
 ```
 
-mask和left_number_chunk有关。选择最后chunk大小的xs去和x做attention。
-```
+# in wenet/transformer/encoder.py BaseEncoder.forward_chunk()
+# 第一个conformer block输入的xs
+xs = torch.cat((subsampling_cache, xs), dim=1)
+
+
+# in wenet/transformer/encoder_layer.py ConformerEncoderLayer.forward()
+# 之后的conformer block输入的xs
 if output_cache is not None:
-            x = torch.cat([output_cache, x], dim=1)
+    x = torch.cat([output_cache, x], dim=1)
 ```
-[TODO]图
+
+layer()对应着wenet/transformer/encoder_layer.py中的ConformerEncoderLayer.forward()。下面是其具体过程。
+
+```
+# 计算feedforwad/res/norm(包含当前chunk和左侧num_decoding_left_chunks个chunk)
+
+# 使用cache时，只要计算当前chunk x_q的self-attentionattention和residual
+
+chunk = x.size(1) - output_cache.size(1)
+x_q = x[:, -chunk:, :]
+
+# 只选择当前chunk对应的部分做residual计算
+residual = residual[:, -chunk:, :]
+
+# 选取当前chunk对应的mask，
+mask = mask[:, -chunk:, :]
+
+# 使用当前chunk的x_q去和其依赖的x做attention
+x = residual + self.dropout(self.self_attn(x_q, x, x, mask))
+
+# 仅计算计算当前chunk的conv
+x, new_cnn_cache = self.conv_module(x, mask_pad, cnn_cache)
+
+# 仅计算当前chunk的feedforwad/res/norm
+x = self.norm2(x)
+x = residual + self.dropout(self.feed_forward(x))
+
+# 可以看到通过cache节省了x[:, :-chunk, :]部分的attention/conv以及之后的feedforwad/res/norm计算
+
+# chunk的输出和cache拼在一起，作为网络的最终输出。
+x = torch.cat([output_cache, x], dim=1)
+```
+
+注意，self-attention之前的一些前向计算其实仍然存在冗余，如果对attention层的输入进行cache，而不是对conformer block层的输入cache，可以进一步降低计算量。
 
 
 ### conformer_cnn_cache
@@ -1116,7 +1160,5 @@ if self.lorder > 0:
     assert (x.size(2) > self.lorder)
     new_cache = x[:, :, -self.lorder:]
 ```
-cache大小为因果卷积左侧依赖的大小lorder。
+cache大小为lorder，即因果卷积左侧依赖，。
 
-
-[TODO]图
