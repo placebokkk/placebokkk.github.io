@@ -13,7 +13,7 @@ categories: wenet
 * 端到端语音识别基础
 * pytorch的实现介绍
 * 进阶内容:mask
-* 进阶内容:cache(未完成)
+* 进阶内容:cache
 
 {: class="table-of-content"}
 * TOC
