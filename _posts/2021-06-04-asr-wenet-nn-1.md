@@ -4,7 +4,11 @@ title:  "Wenet网络设计与实现"
 date:   2021-06-04 10:00:00 +0800
 categories: wenet
 ---
-**本文目前完成80%**
+
+**如果觉得wenet还不错， 请点个star吧** 
+
+[https://github.com/wenet-e2e/wenet](https://github.com/wenet-e2e/wenet)
+
 本文分为四部分
 * 端到端语音识别基础
 * pytorch的实现介绍
@@ -981,7 +985,7 @@ Decoder中每一层中，均需要计算如上两个attention，从网络视角�
 
 
 
-##  第4节: 进阶话题:Cache(草稿)
+##  第4节: 进阶话题:Cache
 
 标准的forward是整个序列进行计算，但是在流式推断时，需要chunk级别的forward，因此需要引入cache的概念，即当前chunk的进行前向计算时，需要拿到上次前向的一些结果作为输入。
 
@@ -994,22 +998,38 @@ Decoder中每一层中，均需要计算如上两个attention，从网络视角�
 另外，wenet的网络在设计时，对于因果卷积和self-attention的左侧上下文都使用有限长度，因此无论序列多长，每次cache的大小是不变的（不增长）。
 
 
-**wenet/transformer/asr_model.py**
+仅仅encoder部分涉及chunk计算时的cache。
+* 对于CTC decoder，由于是线性层，不需要cache。
+* 对于AED decoder，是在计算完整个序列的encoder输出后进行rescoring，不涉及chunk。
 
-`forward_encoder_chunk()`通过jit导出，用于C++ runtime，其内部使用了`encoder.py`中的`forward_chunk()`函数。
+
+
+### Runtime流式解码
+
+asr_model.py中的`forward_encoder_chunk()`通过jit导出，用于C++ runtime，其内部使用了`encoder.py`中的`forward_chunk()`函数。
 ```
+# wenet/transformer/asr_model.py
+
 @torch.jit.export
     def forward_encoder_chunk()
 ```
 
-**wenet/transformer/encoder.py**
+### Python流式解码
 
-`forward_chunk_by_chunk()`是python推断中使用按chunk依次计算的接口，该方法的结果，和送入整个序列通过mask进行流式模拟的结果应该是一致的。
-其内部调用的`forward_chunk()`函数。
+如果设置simulate_streaming为True，则会模拟runtime流时解码的过程，将数据分成chunk，依次进行前向计算。
+该方法的结果，和送入整个序列通过mask进行流式模拟的结果应该是一致的。
+```
+recognize() -> _forward_encoder() -> BaseEncoder.forward_chunk_by_chunk()
+```
+`forward_chunk_by_chunk()`的内部也是使用的`forward_chunk()`函数。
 
-`forward_chunk()`是送入单个chunk进行前向计算的核心函数。下面从该函数的内容来了解cache的实现。
+
+### BaseEncoder.forward_chunk()分析
+
+`forward_chunk()`是对单个chunk进行前向计算的核心函数。下面从该函数的内容来了解cache的实现。
 
 ```
+# wenet/transformer/encoder.py
 def forward_chunk(
         self,
         xs: torch.Tensor,
@@ -1022,14 +1042,17 @@ def forward_chunk(
                List[torch.Tensor]]:
 ```
 
-xs是当前的chunk输入，由于对于单个chunk的前向计算，需要之前的chunk的计算得到的信息，因此这里需要传入相关的cache信息，具体有三个
-* subsampling_cache:torch.Tensor  subsampling的输出进行cache。即第一个conformer block的输入。
-* elayers_output_cache:List[torch.Tensor] 第1个到最后1个conformer block的输出的cache。也就是第2个conformer block的输入和CTC层的输入。
-* conformer_cnn_cache:List[torch.Tensor] conformer block里的conv层的左侧依赖的输入cache。
+xs是当前的chunk输入，由于对于单个chunk的前向计算，需要之前的chunk的计算得到的信息，因此这里需要传入相关的三个cache信息。
 
-cache的大小
+* **subsampling_cache:torch.Tensor**  subsampling的输出的cache。即第一个conformer block的输入。
+* **elayers_output_cache:List[torch.Tensor]** 第1个到最后1个conformer block的输出的cache。也就是第2个conformer block的输入和CTC层的输入。
+* **conformer_cnn_cache:List[torch.Tensor]** conformer block里的conv层的左侧依赖的输入cache。
 
-* subsampling_cache和elayers_output_cache的大小由self-attention是对左侧的依赖长度required_cache_size决定。
+**cache的大小**
+
+* subsampling_cache和elayers_output_cache的大小
+由self-attention是对左侧的依赖长度required_cache_size决定。
+decoding_chunk_size是解码帧级别的chunk大小, num_decoding_left_chunks是self-attention依赖的左侧chunk数。
 ```
 required_cache_size = decoding_chunk_size * num_decoding_left_chunks
 ```
@@ -1037,27 +1060,27 @@ required_cache_size = decoding_chunk_size * num_decoding_left_chunks
 
 函数返回了四个值，包括当前chunk输入对应的输出，更新后的三个cache。
 
-计算过程参考下图
+该函数的整个计算过程请参考下图
 
 ![cache-all](/assets/images/wenet/cache-all.png)
 
 
-### offset
+#### offset
 
-当按chunk进行输入时，不能直接得到chunk在序列中的位置，需要传入offset给出该chunk在整个序列里的偏移，从而可以计算positional encoding的位置。
+当按chunk进行输入时，不能直接得到chunk在序列中的位置，需要传入offset给出该chunk在整个序列里的偏移，用于计算positional encoding。
 
 ```
 xs, pos_emb, _ = self.embed(xs, tmp_masks, offset)
 ```
 
-### subsampling内部
+#### subsampling内部
 
-subsampling内部的计算不进行cache。其实现比较复杂，且不使用cache计算量不大
+subsampling内部的计算虽然存在冗余，但是不进行cache。一个是其实现比较复杂，另一个原因是subsampling的计算量占比不大。
 
 
-### subsampling_cache
+#### subsampling_cache
 
-subsampling的输出进行cache。即第一个conformer block的输入。
+subsampling的输出的cache。即第一个conformer block的输入。
 
 ```
 if subsampling_cache is not None:
@@ -1078,7 +1101,7 @@ r_subsampling_cache = xs[:, next_cache_start:, :]
 ```
 
 
-### elayers_output_cache
+#### elayers_output_cache
 
 第1个到最后1个conformer block的输出的cache。也就是第2个conformer block的输入和CTC层的输入。
 
@@ -1098,12 +1121,12 @@ for i, layer in enumerate(self.encoders):
 注意，此处的xs不是当前的chunk，而是当前chunk+cache输入，所以其长度不是chunk_size, 而是chunk_size + required_cache_size。
 ```
 
-# in wenet/transformer/encoder.py BaseEncoder.forward_chunk()
+# wenet/transformer/encoder.py BaseEncoder.forward_chunk()
 # 第一个conformer block输入的xs
 xs = torch.cat((subsampling_cache, xs), dim=1)
 
 
-# in wenet/transformer/encoder_layer.py ConformerEncoderLayer.forward()
+# wenet/transformer/encoder_layer.py ConformerEncoderLayer.forward()
 # 之后的conformer block输入的xs
 if output_cache is not None:
     x = torch.cat([output_cache, x], dim=1)
@@ -1144,21 +1167,28 @@ x = torch.cat([output_cache, x], dim=1)
 注意，self-attention之前的一些前向计算其实仍然存在冗余，如果对attention层的输入进行cache，而不是对conformer block层的输入cache，可以进一步降低计算量。
 
 
-### conformer_cnn_cache
+#### conformer_cnn_cache
 
-每个conformer block里的conv层的输入。
+conformer block里的conv层的左侧依赖的输入cache。
+
+conformer_cnn_cache大小为lorder，即因果卷积左侧依赖，。
 
 ```
+# wenet/transformer/encoder_layer.py ConformerEncoderLayer.forward()
+# conformer_cnn_cache通过ConvolutionModule.forward()返回的新cache来更新
 x, new_cnn_cache = self.conv_module(x, mask_pad, cnn_cache)
 ```
+
 ```
+# wenet/transformer/convolution.py ConvolutionModule.forward()
 if self.lorder > 0:
     if cache is None:
         x = nn.functional.pad(x, (self.lorder, 0), 'constant', 0.0)
     else:
         x = torch.cat((cache, x), dim=2)
-    assert (x.size(2) > self.lorder)
+    # 更新 conformer_cnn_cache
     new_cache = x[:, :, -self.lorder:]
 ```
-cache大小为lorder，即因果卷积左侧依赖，。
 
+
+**感谢阅读，欢迎使用wenet！**
