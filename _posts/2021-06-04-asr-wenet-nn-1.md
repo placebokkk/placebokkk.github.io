@@ -446,7 +446,7 @@ class ConformerEncoderLayer(nn.Module):
         residual = x
         x = self.norm_conv(x)
         x, new_cnn_cache = self.conv_module(x, mask_pad, cnn_cache)
-        x = x + self.dropout(x)
+        x = residual + self.dropout(x)
 
         residual = x
         x = self.norm_ff(x)
