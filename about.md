@@ -5,8 +5,19 @@ permalink: /about/
 ---
 I am a father/sport-lover/programmer living in Suzhou,China.
 
-I used to work in Microsoft, AISpeech and a start-up. Now I work as an engineer in Mobvoi, focusing on machine learning and ASR technique. 
+I used to work in Microsoft(2014-2017), AISpeech(2017-2018), a start-up(2018) and Mobvoi(2018-2021). Now I work in Horizon robot, focusing on In-vehicle intelligent interaction. 
 I also teach children basketball and coach an adult basketball team in spare time.
+
+**2022 blogging plan**
+1. Notes on NLP tools, Hugging face, Scapy, Rasa
+2. Notes on Voice interface design and survey on industrial VUI platform.
+3. Plan to learn techs about auto driving.
+
+
+**2021 review**
+This year I only post two articles , both about Wenet. One is a short note to explain RPE(Relative Positional Embedding) in wenet, anthor is a very long tutorial about design and implmentation of wenet. I spent a lot time and effort on the later one. Hope this could help the advanced users and ASR learner to understand wenet and e2e ASR system implementation better.
+In the second half of 2022, I changed job and spend most time on voice application in vehicle and NLP technology. 
+Still no time is spent on Deep Learning compiler. Maybe I am not so interesting in this area.
 
 **2021 blogging plan**
 1. New trends in E2E ASR.
